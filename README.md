@@ -10,7 +10,7 @@
 
 - Queryable via SQL: Select your data using a familiar, lightweight SQL syntax.
 
-- Caching Mechanism: With TTL/RefreshAutomatic data expiration and refresh from external sources like databases or APIs.
+- Caching Mechanism with TTL and auto refresh.
 
 - In-Memory and Disk Support: Operates primarily in-memory for speed, with optional persistence to disk.
 
