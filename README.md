@@ -6,19 +6,19 @@
 
 ## Core features
 
-- Relational ModelStore structured data with tables, rows, and columns like a traditional SQL database.
+- Relational Model: Stores structured data with tables, rows, and columns like a traditional SQL database.
 
-- Queryable via SQL SELECTQuery your data using a familiar, lightweight SQL syntax.
+- Queryable via SQL: Select your data using a familiar, lightweight SQL syntax.
 
-- Caching Mechanism with TTL/RefreshAutomatic data expiration and refresh from external sources like databases or APIs.
+- Caching Mechanism: With TTL/RefreshAutomatic data expiration and refresh from external sources like databases or APIs.
 
-- In-Memory and Disk SupportOperates primarily in-memory for speed, with optional persistence to disk.
+- In-Memory and Disk Support: Operates primarily in-memory for speed, with optional persistence to disk.
 
-- Fast ReadsOptimized for ultra-low latency data access.
+- Fast Reads, optimized for low latency data access.
 
-- EmbeddableLightweight core that can be embedded directly into any Java application.
+- Embeddable and lightweight core that can be embedded directly into any applications.
 
-- Transactions and ConcurrencySupports multi-threaded reads and writes with transactional guarantees.
+- Transactions and Concurrency supports: Multi-threaded reads and writes with transactional guarantees.
 
-- External Data Source SyncConnects to your existing databases or APIs to refresh and update cache entries automatically.
+- External Data Source Sync: Connects to your existing databases or APIs to refresh and update cache entries automatically.
 
