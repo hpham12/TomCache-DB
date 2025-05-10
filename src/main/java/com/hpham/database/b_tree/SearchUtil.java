@@ -2,8 +2,6 @@ package com.hpham.database.b_tree;
 
 import java.util.List;
 
-import static com.hpham.database.b_tree.BTree.FAN_OUT;
-
 public class SearchUtil {
 
     /**
@@ -13,7 +11,7 @@ public class SearchUtil {
      * */
     public static <K extends Comparable<K>> int searchForIndex(K key, List<K> keyList) {
         int start = 0;
-        int end = FAN_OUT - 1;
+        int end = keyList.size() - 1;
 
         while (start <= end) {
             int mid = (start + end)/2;
@@ -40,14 +38,14 @@ public class SearchUtil {
      * */
     public static <K extends Comparable<K>> int findFirstLargerIndex(K key, List<K> keyList) {
         int start = 0;
-        int end = FAN_OUT - 2;
+        int end = keyList.size() - 1;
 
         if (key.compareTo(keyList.getFirst()) < 0) {
             return 0;
         }
 
         if (key.compareTo(keyList.getLast()) >= 0) {
-            return -1;
+            return keyList.size();
         }
 
         while (start < end) {

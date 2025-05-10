@@ -27,9 +27,9 @@ public class SearchUtilTest {
     private static Stream<TestCase> searchForIndexTestCases() {
         return Stream.of(
                 new TestCase(0, -1),
-                new TestCase(4, 2),
-                new TestCase(7, 4),
-                new TestCase(10, 5)
+                new TestCase(5, 2),
+                new TestCase(7, 3),
+                new TestCase(9, 4)
         );
     }
 
@@ -39,8 +39,8 @@ public class SearchUtilTest {
                 new TestCase(1, 1),
                 new TestCase(3, 2),
                 new TestCase(4, 2),
-                new TestCase(9, -1),
-                new TestCase(10, -1)
+                new TestCase(9, 5),
+                new TestCase(10, 5)
         );
     }
 

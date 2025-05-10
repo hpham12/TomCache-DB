@@ -1,66 +1,52 @@
 package com.hpham.database.b_tree;
 
-import com.hpham.database.model.Entry;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import static com.hpham.database.b_tree.BTree.FAN_OUT;
+import static com.hpham.database.b_tree.BTree.FANOUT;
 
 /**
- * Class representing a B-Tree Node.
- * If a node is a leaf node (isLeat == true), then separators is null, and entries contain
- * pointers to the actual entry.
- * If a node is not a leaf node, then entries is null, and separators contain pointers to
- * child nodes
+ * Class representing B-Tree node.
  *
- * @author Hieu Pham
- */
+ * If a node is a leaf node, pointers and keys will be null, and records will contain the actual record
+ *
+ * @author hpham12
+ * */
 @Getter
 @Setter
 public class BTreeNode<K extends Comparable<K>> {
-    private List<K> keys;
-    private List<Separator<BTreeNode<K>>> separators;
     private Boolean isLeaf;
-    private List<Entry<K, ?>> entries;
+    private List<BTreeNode<K>> pointers;
+    private List<K> keys;
+    private List<Record<K, ?>> records;
+    private BTreeNode<K> parent;
 
     public BTreeNode(Boolean isLeaf) {
         this.isLeaf = isLeaf;
-
         if (isLeaf) {
-            entries = new ArrayList<>(FAN_OUT);
+            records = new ArrayList<>();
         } else {
-            keys = new ArrayList<>(FAN_OUT - 1);
-            separators = new ArrayList<>(FAN_OUT);
+            pointers = new ArrayList<>();
+            keys = new ArrayList<>();
         }
     }
 
-    /**
-     * Add an entry into a node.
-     * If a node is a leaf node, then add entry into entries in sorted order.
-     * If a node is not a lead node, add the key to keys in sorted order
-     */
-    public Entry<K, ?> addEntry(Entry<K, ?> entry) {
-        if (isLeaf) {
-            entries.add(entry);
-            entries.sort(Comparator.comparing(Entry::getKey));
-            return entry;
-        } else {
-            K key = entry.getKey();
-            keys.add(key);
-            Collections.sort(keys);
-            return entry;
+    public void addNewRecord(Record<K, ?> newRecord) throws IllegalAccessException{
+        if (!isLeaf) {
+            throw new IllegalAccessException("Cannot call addNewRecord on non-leaf node");
         }
-    }
+        K key = newRecord.getKey();
 
-    public void setSeparator(int index, BTreeNode<K> childNode) {
-        if (separators.get(index) == null) {
-            separators.set(index, new Separator<>());
+        if (records.size() == FANOUT + 1) {
+            // Full, need to split
+
+        } else {
+            records.add(newRecord);
+            records.sort(Comparator.comparing(Record::getKey));
         }
-        separators.get(index).setNext(childNode);
     }
 }

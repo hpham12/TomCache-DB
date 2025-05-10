@@ -22,3 +22,7 @@
 
 - External Data Source Sync: Connects to your existing databases or APIs to refresh and update cache entries automatically.
 
+## Requirements:
+- Java 21
+- 
+
