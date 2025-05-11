@@ -17,8 +17,11 @@ public class BTree<K extends Comparable<K>> {
         K key = record.getKey();
         BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
-        // TODO: handle the case when targetLeafNode is full
-        targetLeafNode.addNewRecord(record);
+        BTreeNode<K> newRoot = targetLeafNode.addNewRecord(record);
+
+        if (newRoot != null) {
+            this.root = newRoot;
+        }
         return record;
     }
 

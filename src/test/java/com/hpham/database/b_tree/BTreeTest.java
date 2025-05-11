@@ -15,8 +15,9 @@ public class BTreeTest {
 
     @Test
     void testAdd() throws IllegalAccessException{
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 115; i++) {
             Record<Integer, ?> entry = new Record<>(i, "Hello");
+            System.out.println(i);
             bTree.insert(entry);
             assertThat(bTree.findRecord(i)).isEqualTo(entry);
         }
