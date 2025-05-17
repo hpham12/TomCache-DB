@@ -22,4 +22,14 @@ public class BTreeTest {
             assertThat(bTree.findRecord(i)).isEqualTo(entry);
         }
     }
+
+    @Test
+    void testAddVer2() throws IllegalAccessException{
+        for (int i = 150; i >= 0 ; i--) {
+            Record<Integer, ?> entry = new Record<>(i, "Hello");
+            System.out.println(i);
+            bTree.insert(entry);
+            assertThat(bTree.findRecord(i)).isEqualTo(entry);
+        }
+    }
 }

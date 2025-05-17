@@ -99,7 +99,8 @@ public class BTreeNode<K extends Comparable<K>> {
             this.keys = new ArrayList<>();
             this.pointers = new ArrayList<>();
 
-            combinedKeys.add(key);
+            int newKeyIndex = SearchUtil.findFirstLargerIndex(key, combinedKeys);
+            combinedKeys.add(newKeyIndex, key);
 
             // split records into 2 halves
             for (int i = 0; i < FANOUT; i++) {
@@ -110,14 +111,15 @@ public class BTreeNode<K extends Comparable<K>> {
                 }
             }
 
-            int newKeyIndex = SearchUtil.searchForIndex(key, combinedKeys);
             combinedPointers.add(newKeyIndex + 1, newChildNode);
 
             for (int i = 0; i <= FANOUT; i++) {
-                if (i < FANOUT/2) {
+                if (i <= FANOUT/2) {
                     this.pointers.add(combinedPointers.get(i));
                     combinedPointers.get(i).setParent(this);
-                } else {
+                }
+
+                if (i >= FANOUT/2) {
                     newNode.pointers.add(combinedPointers.get(i));
                     combinedPointers.get(i).setParent(newNode);
                 }
