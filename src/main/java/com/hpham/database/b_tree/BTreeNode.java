@@ -51,7 +51,7 @@ public class BTreeNode<K extends Comparable<K>> {
 
             // split records into 2 halves
             for (int i = 0; i <= FANOUT; i++) {
-                if (i <= FANOUT/2) {
+                if (i < FANOUT/2) {
                     this.records.add(combinedRecords.get(i));
                 } else {
                     newNode.records.add(combinedRecords.get(i));
@@ -102,31 +102,30 @@ public class BTreeNode<K extends Comparable<K>> {
             int newKeyIndex = SearchUtil.findFirstLargerIndex(key, combinedKeys);
             combinedKeys.add(newKeyIndex, key);
 
-            // split records into 2 halves
+            // split keys into 2 halves
             for (int i = 0; i < FANOUT; i++) {
                 if (i < FANOUT/2) {
                     this.keys.add(combinedKeys.get(i));
-                } else {
+                } else if (i > FANOUT/2) {
                     newNode.keys.add(combinedKeys.get(i));
                 }
             }
 
             combinedPointers.add(newKeyIndex + 1, newChildNode);
 
+            // Split pointers
             for (int i = 0; i <= FANOUT; i++) {
                 if (i <= FANOUT/2) {
                     this.pointers.add(combinedPointers.get(i));
                     combinedPointers.get(i).setParent(this);
-                }
-
-                if (i >= FANOUT/2) {
+                } else {
                     newNode.pointers.add(combinedPointers.get(i));
                     combinedPointers.get(i).setParent(newNode);
                 }
             }
 
             // bubble the key up to parent node
-            K keyBubbledUp = combinedKeys.get((FANOUT - 1)/2);
+            K keyBubbledUp = combinedKeys.get(FANOUT/2);
 
             if (parent == null) {
                 // parent == null implies that "this" is the root,
