@@ -9,6 +9,6 @@ jobs:
         uses: actions/setup-java@v2
         with:
           java-version: 21
-          distribution: 'corretto'
+          distribution: corretto
       - name: Build and test with Gradle
         run: ./gradlew build test
