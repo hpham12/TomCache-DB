@@ -7,7 +7,7 @@ import lombok.Setter;
 @Setter
 public class BTree<K extends Comparable<K>> {
     public static final Integer FANOUT = 4;
-    BTreeNode<K> root;
+    private BTreeNode<K> root;
 
     public BTree() {
         root = new BTreeNode<>(Boolean.TRUE);
