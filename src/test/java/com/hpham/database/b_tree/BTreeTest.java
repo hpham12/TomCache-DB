@@ -1,9 +1,11 @@
 package com.hpham.database.b_tree;
 
+import com.hpham.database.b_tree.exceptions.RecordNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedList;
+import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Random;
 import java.util.stream.IntStream;
@@ -11,6 +13,7 @@ import java.util.stream.Stream;
 
 import static com.hpham.database.b_tree.BTree.FANOUT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class BTreeTest {
     private BTree<Integer> bTree;
@@ -42,7 +45,7 @@ public class BTreeTest {
     void testAddVer3() throws IllegalAccessException{
         for (int i = 0; i < 150 ; i++) {
             int randomKey = new Random().nextInt();
-            Record<Integer, ?> entry = new Record<>(randomKey, "Hello");
+            Record<Integer, ?> entry = new Record<>(randomKey, "Hello" + randomKey);
             bTree.insert(entry);
             assertThat(bTree.findRecord(randomKey)).isEqualTo(entry);
         }
@@ -50,7 +53,7 @@ public class BTreeTest {
 
     @Test
     void testTreeIntegrity() throws IllegalAccessException {
-        for (int i = 0; i < 100 ; i++) {
+        for (int i = 0; i < 150 ; i++) {
             int randomKey = new Random().nextInt();
             Record<Integer, ?> entry = new Record<>(randomKey, "Hello");
             bTree.insert(entry);
@@ -60,7 +63,7 @@ public class BTreeTest {
         queue.offer(bTree.getRoot());
 
         while (!queue.isEmpty()) {
-            // check for ordering and occupancies
+            // check for ordering, occupancies, and parent-child relationship
             BTreeNode<Integer> currentNode = queue.poll();
             if (currentNode.getIsLeaf()) {
                 var records = currentNode.getRecords();
@@ -78,6 +81,12 @@ public class BTreeTest {
                 var pointers = currentNode.getPointers();
                 assertThat(pointers.size())
                         .isGreaterThanOrEqualTo((int) Math.ceil(((double) FANOUT)/2));
+
+                assertThat(pointers.size()).isEqualTo(keys.size() + 1);
+
+                for (var pointer : pointers) {
+                    assertThat(pointer.getParent()).isEqualTo(currentNode);
+                }
             }
 
             if (!currentNode.getIsLeaf()) {
@@ -85,6 +94,20 @@ public class BTreeTest {
                     queue.offer(pointer);
                 }
             }
+        }
+    }
+
+    @Test
+    void testDelete() throws IllegalAccessException, RecordNotFoundException {
+        for (int i = 0; i < 1500 ; i++) {
+            Record<Integer, ?> entry = new Record<>(i, "Hello");
+            bTree.insert(entry);
+        }
+
+        for (int i = 0; i < 1500 ; i++) {
+            System.out.println(i);
+            bTree.delete(i);
+            assertThat(bTree.findRecord(i)).isNull();
         }
     }
 }
