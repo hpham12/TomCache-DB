@@ -250,8 +250,6 @@ public class BTreeNode<K extends Comparable<K>> {
             throw new IllegalAccessException("Cannot call mergeOrRebalance on leaf node");
         }
 
-        // TODO: handle the case when this is a root
-
         if (this.parent == null) {
             return null;
         }
@@ -274,16 +272,16 @@ public class BTreeNode<K extends Comparable<K>> {
                 int parentKeyIndexToChange;
                 K keyToMove;
                 if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToRebalance)) {
-                    // TODO: fix this
                     parentKeyIndexToChange = this.parent.pointers.indexOf(nodeToRebalanceWith);
-                    keyToMove = nodeToRebalanceWith.keys.getLast();
+                    var keyToPromote = nodeToRebalanceWith.keys.getLast();
+                    keyToMove = parent.keys.get(parentKeyIndexToChange);
                     this.keys.addFirst(keyToMove);
                     var pointerToMove = nodeToRebalanceWith.pointers.getLast();
                     pointerToMove.setParent(this);
                     this.pointers.addFirst(pointerToMove);
                     nodeToRebalanceWith.keys.removeLast();
                     nodeToRebalanceWith.pointers.removeLast();
-                    this.parent.keys.set(parentKeyIndexToChange, keyToMove);
+                    this.parent.keys.set(parentKeyIndexToChange, keyToPromote);
                 } else {
                     parentKeyIndexToChange = this.parent.pointers.indexOf(this);
                     keyToMove = nodeToRebalanceWith.keys.getFirst();

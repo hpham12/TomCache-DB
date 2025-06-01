@@ -4,10 +4,7 @@ import com.hpham.database.b_tree.exceptions.RecordNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedList;
-import java.util.NoSuchElementException;
-import java.util.Queue;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -108,6 +105,35 @@ public class BTreeTest {
             System.out.println(i);
             bTree.delete(i);
             assertThat(bTree.findRecord(i)).isNull();
+        }
+    }
+
+    @Test
+    void testDelete2() throws IllegalAccessException, RecordNotFoundException {
+        for (int i = 1500; i >= 0 ; i--) {
+            Record<Integer, ?> entry = new Record<>(i, "Hello");
+            bTree.insert(entry);
+        }
+
+        for (int i = 1500; i >= 0 ; i--) {
+            System.out.println(i);
+            bTree.delete(i);
+            assertThat(bTree.findRecord(i)).isNull();
+        }
+    }
+
+    @Test
+    void testDeleteVer3() throws IllegalAccessException {
+        Set<Integer> randomKeys = new HashSet<>();
+        Random rand = new Random();
+        for (int i = 0; i < 1500; i++) {
+            randomKeys.add(rand.nextInt());
+        }
+
+        for (Integer key : randomKeys) {
+            Record<Integer, ?> entry = new Record<>(key, "Hello" + key);
+            bTree.insert(entry);
+            assertThat(bTree.findRecord(key)).isEqualTo(entry);
         }
     }
 }

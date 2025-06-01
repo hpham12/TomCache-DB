@@ -33,6 +33,7 @@ public class BTree<K extends Comparable<K>> {
 
         if (newRoot != null) {
             this.root = newRoot;
+            this.root.setParent(null);
         }
     }
 
