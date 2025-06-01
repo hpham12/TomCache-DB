@@ -1,5 +1,6 @@
 package com.hpham.database.b_tree;
 
+import com.hpham.database.b_tree.exceptions.RecordNotFoundException;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -7,7 +8,7 @@ import lombok.Setter;
 @Setter
 public class BTree<K extends Comparable<K>> {
     public static final Integer FANOUT = 4;
-    BTreeNode<K> root;
+    private BTreeNode<K> root;
 
     public BTree() {
         root = new BTreeNode<>(Boolean.TRUE);
@@ -23,6 +24,17 @@ public class BTree<K extends Comparable<K>> {
             this.root = newRoot;
         }
         return record;
+    }
+
+    public void delete(K key) throws RecordNotFoundException, IllegalAccessException {
+        BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
+
+        BTreeNode<K> newRoot = targetLeafNode.deleteRecord(key);
+
+        if (newRoot != null) {
+            this.root = newRoot;
+            this.root.setParent(null);
+        }
     }
 
     public Record<K, ?> findRecord(K key) {
