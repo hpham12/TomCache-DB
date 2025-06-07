@@ -1,5 +1,6 @@
 package com.hpham.database.b_tree;
 
+import com.hpham.database.b_tree.exceptions.InvalidMethodInvocationException;
 import com.hpham.database.b_tree.exceptions.RecordNotFoundException;
 import lombok.Getter;
 import lombok.NonNull;
@@ -8,15 +9,16 @@ import lombok.Setter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import static com.hpham.database.b_tree.BTree.FANOUT;
 
 /**
  * Class representing B-Tree node.
+ * <br>
+ * If a node is a leaf node, pointers and keys will be {@code null}, and records will contain the actual record
  *
- * If a node is a leaf node, pointers and keys will be null, and records will contain the actual record
- *
- * @author hpham12
+ * @author Hieu Pham
  * */
 @Getter
 @Setter
@@ -27,7 +29,7 @@ public class BTreeNode<K extends Comparable<K>> {
     private List<Record<K, ?>> records;
     private BTreeNode<K> parent;
 
-    public BTreeNode(Boolean isLeaf) {
+    private BTreeNode(Boolean isLeaf) {
         this.isLeaf = isLeaf;
         if (isLeaf) {
             records = new ArrayList<>();
@@ -37,14 +39,35 @@ public class BTreeNode<K extends Comparable<K>> {
         }
     }
 
-    public BTreeNode<K> addNewRecord(Record<K, ?> newRecord) throws IllegalAccessException{
-        if (!isLeaf) {
-            throw new IllegalAccessException("Cannot call addNewRecord on non-leaf node");
+    /**
+     * Create a leaf node.
+     * */
+    static <K extends Comparable<K>> BTreeNode<K> createLeafNode() {
+        return new BTreeNode<>(true);
+    }
+
+    /**
+     * Create an internal node.
+     * */
+    static <K extends Comparable<K>> BTreeNode<K> createInternalNode() {
+        return new BTreeNode<>(false);
+    }
+
+    /**
+     * Add new record to the current leaf node.
+     *
+     * @param newRecord new record to add
+     * @return New root of the B-Tree, {@code null} if the root does not change
+     * @throws InvalidMethodInvocationException if this is not a leaf node
+     * */
+    Optional<BTreeNode<K>> addNewRecord(Record<K, ?> newRecord) {
+        if (!this.isLeaf) {
+            throw new InvalidMethodInvocationException("Cannot add new record to an internal node");
         }
 
         if (records.size() == FANOUT) {
             // The leaf node is full, so we need to split
-            BTreeNode<K> newNode = new BTreeNode<>(true);
+            BTreeNode<K> newLeafNode = createLeafNode();
             List<Record<K, ?>> combinedRecords = this.records;
             this.records = new ArrayList<>();
             combinedRecords.add(newRecord);
@@ -55,7 +78,7 @@ public class BTreeNode<K extends Comparable<K>> {
                 if (i < FANOUT/2) {
                     this.records.add(combinedRecords.get(i));
                 } else {
-                    newNode.records.add(combinedRecords.get(i));
+                    newLeafNode.records.add(combinedRecords.get(i));
                 }
             }
 
@@ -65,35 +88,37 @@ public class BTreeNode<K extends Comparable<K>> {
             if (parent == null) {
                 // parent == null implies that "this" is the root,
                 // thus we need to create a new parent node
-                BTreeNode<K> newParent = new BTreeNode<>(false);
+                BTreeNode<K> newParent = createInternalNode();
                 this.parent = newParent;
-                newNode.parent = newParent;
+                newLeafNode.parent = newParent;
 
                 parent.pointers.add(this);
-                parent.pointers.add(newNode);
+                parent.pointers.add(newLeafNode);
                 parent.keys.add(keyBubbledUp);
 
-                return parent;
+                return Optional.ofNullable(parent);
             }
 
-            newNode.parent = this.parent;
-            return parent.addNewKey(keyBubbledUp, newNode);
+            newLeafNode.parent = this.parent;
+            return parent.addNewKey(keyBubbledUp, newLeafNode);
         } else {
             records.add(newRecord);
             records.sort(Comparator.comparing(Record::getKey));
 
-            return null;
+            return Optional.empty();
         }
     }
 
-    private BTreeNode<K> addNewKey(K key, BTreeNode<K> newChildNode) throws IllegalAccessException {
+
+
+    private Optional<BTreeNode<K>> addNewKey(K key, BTreeNode<K> newChildNode) {
         if (isLeaf) {
-            throw new IllegalAccessException("Cannot call addNewKey on leaf node");
+            throw new InvalidMethodInvocationException("Cannot call addNewKey on leaf node");
         }
 
-        if (keys.size() == FANOUT - 1) {
+        if (pointers.size() == FANOUT) {
             // The internal node is full, so we need to split
-            BTreeNode<K> newNode = new BTreeNode<>(false);
+            BTreeNode<K> newNode = createInternalNode();
             List<K> combinedKeys = this.keys;
             List<BTreeNode<K>> combinedPointers = this.pointers;
 
@@ -131,7 +156,7 @@ public class BTreeNode<K extends Comparable<K>> {
             if (parent == null) {
                 // parent == null implies that "this" is the root,
                 // thus we need to create a new parent node
-                BTreeNode<K> newParent = new BTreeNode<>(false);
+                BTreeNode<K> newParent = createInternalNode();
                 this.parent = newParent;
                 newNode.parent = newParent;
 
@@ -139,7 +164,7 @@ public class BTreeNode<K extends Comparable<K>> {
                 parent.pointers.add(newNode);
                 parent.keys.add(keyBubbledUp);
 
-                return parent;
+                return Optional.of(parent);
             } else {
                 return parent.addNewKey(keyBubbledUp, newNode);
             }
@@ -148,13 +173,13 @@ public class BTreeNode<K extends Comparable<K>> {
             keys.add(newKeyIndex, key);
             newChildNode.setParent(this);
             pointers.add(newKeyIndex + 1, newChildNode);
-            return null;
+            return Optional.empty();
         }
     }
 
-    BTreeNode<K> deleteRecord(K key) throws IllegalAccessException, RecordNotFoundException {
+    BTreeNode<K> deleteRecord(K key) {
         if (!isLeaf) {
-            throw new IllegalAccessException("Cannot call deleteRecord on non-left node");
+            throw new InvalidMethodInvocationException("Cannot call deleteRecord on non-left node");
         }
 
         Record<K, ?> recordToDelete = records
@@ -189,7 +214,6 @@ public class BTreeNode<K extends Comparable<K>> {
                 int parentKeyIndexToChange;
                 Record<K, ?> recordToMove;
                 if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToRebalance)) {
-                    // TODO: fix this
                     parentKeyIndexToChange = this.parent.pointers.indexOf(nodeToRebalanceWith);
                     recordToMove = nodeToRebalanceWith.records.getLast();
                     nodeToRebalanceWith.records.removeLast();
@@ -245,9 +269,9 @@ public class BTreeNode<K extends Comparable<K>> {
      *
      * @return a node that will be a new root, null if root does not change
      * */
-    private BTreeNode<K> mergeOrRebalance() throws IllegalAccessException {
+    private BTreeNode<K> mergeOrRebalance() {
         if (isLeaf) {
-            throw new IllegalAccessException("Cannot call mergeOrRebalance on leaf node");
+            throw new InvalidMethodInvocationException("Cannot call mergeOrRebalance on leaf node");
         }
 
         if (this.parent == null) {

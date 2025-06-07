@@ -1,32 +1,37 @@
 package com.hpham.database.b_tree;
 
-import com.hpham.database.b_tree.exceptions.RecordNotFoundException;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.Objects;
+import java.util.Optional;
 
 @Getter
 @Setter
 public class BTree<K extends Comparable<K>> {
-    public static final Integer FANOUT = 4;
+    public static final Integer FANOUT = 5;
     private BTreeNode<K> root;
 
     public BTree() {
-        root = new BTreeNode<>(Boolean.TRUE);
+        root = BTreeNode.createLeafNode();
     }
 
-    public Record<K, ?> insert(Record<K, ?> record) throws IllegalAccessException {
+    /**
+     *
+     * */
+    public Record<K, ?> insert(Record<K, ?> record) {
+        Objects.requireNonNull(record, "record must not be null");
         K key = record.getKey();
         BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
-        BTreeNode<K> newRoot = targetLeafNode.addNewRecord(record);
+        Optional<BTreeNode<K>> newRootOptional = targetLeafNode.addNewRecord(record);
 
-        if (newRoot != null) {
-            this.root = newRoot;
-        }
+        newRootOptional.ifPresent(newRoot -> this.root = newRoot);
+
         return record;
     }
 
-    public void delete(K key) throws RecordNotFoundException, IllegalAccessException {
+    public void delete(K key) {
         BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
         BTreeNode<K> newRoot = targetLeafNode.deleteRecord(key);
@@ -49,7 +54,7 @@ public class BTree<K extends Comparable<K>> {
     }
 
     /**
-     * Find the leaf node that possibly contain a record with key "key"
+     * Find the leaf node that possibly contain a record with key {@code key}
      * */
     private BTreeNode<K> findTargetLeafNode(K key) {
         BTreeNode<K> currentNode = root;
