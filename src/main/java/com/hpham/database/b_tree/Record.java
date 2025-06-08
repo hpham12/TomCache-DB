@@ -1,13 +1,11 @@
 package com.hpham.database.b_tree;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
 @AllArgsConstructor
+@Builder
 public class Record<K extends Comparable<K>, V> implements Comparable<Record<K, V>> {
     private @NonNull K key;
     private @NonNull V value;

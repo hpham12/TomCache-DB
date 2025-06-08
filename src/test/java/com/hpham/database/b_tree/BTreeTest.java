@@ -2,7 +2,8 @@ package com.hpham.database.b_tree;
 
 import com.hpham.database.b_tree.exceptions.RecordNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.*;
 import java.util.stream.IntStream;
@@ -10,51 +11,32 @@ import java.util.stream.Stream;
 
 import static com.hpham.database.b_tree.BTree.FANOUT;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class BTreeTest {
     private BTree<Integer> bTree;
+    private static final Integer NUMBER_OF_TEST_RECORDS = 150000;
 
     @BeforeEach
     void setup() {
         bTree = new BTree<>();
     }
 
-    @Test
-    void testAdd() throws IllegalAccessException{
-        for (int i = 0; i < 115; i++) {
-            Record<Integer, ?> entry = new Record<>(i, "Hello");
-            bTree.insert(entry);
-            assertThat(bTree.findRecord(i)).isEqualTo(entry);
-        }
+    @ParameterizedTest
+    @MethodSource("testRecords")
+    void testAdd(List<Record<Integer, String>> records) {
+        records.forEach(record -> {
+            bTree.insert(record);
+            assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
+        });
     }
 
-    @Test
-    void testAddVer2() throws IllegalAccessException{
-        for (int i = 150; i >= 0 ; i--) {
-            Record<Integer, ?> entry = new Record<>(i, "Hello");
-            bTree.insert(entry);
-            assertThat(bTree.findRecord(i)).isEqualTo(entry);
-        }
-    }
-
-    @Test
-    void testAddVer3() throws IllegalAccessException{
-        for (int i = 0; i < 150 ; i++) {
-            int randomKey = new Random().nextInt();
-            Record<Integer, ?> entry = new Record<>(randomKey, "Hello" + randomKey);
-            bTree.insert(entry);
-            assertThat(bTree.findRecord(randomKey)).isEqualTo(entry);
-        }
-    }
-
-    @Test
-    void testTreeIntegrity() throws IllegalAccessException {
-        for (int i = 0; i < 150 ; i++) {
-            int randomKey = new Random().nextInt();
-            Record<Integer, ?> entry = new Record<>(randomKey, "Hello");
-            bTree.insert(entry);
-        }
+    @ParameterizedTest
+    @MethodSource("testRecords")
+    void testTreeIntegrity(List<Record<Integer, String>> testRecords) {
+        testRecords.forEach(record -> {
+            bTree.insert(record);
+            assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
+        });
 
         Queue<BTreeNode<Integer>> queue = new LinkedList<>();
         queue.offer(bTree.getRoot());
@@ -76,8 +58,14 @@ public class BTreeTest {
                     assertThat(keys.get(i)).isGreaterThan(keys.get(i - 1));
                 }
                 var pointers = currentNode.getPointers();
-                assertThat(pointers.size())
-                        .isGreaterThanOrEqualTo((int) Math.ceil(((double) FANOUT)/2));
+
+                if (currentNode.getParent() == null) {
+                    assertThat(pointers.size())
+                            .isGreaterThanOrEqualTo(1);
+                } else {
+                    assertThat(pointers.size())
+                            .isGreaterThanOrEqualTo((int) Math.ceil(((double) FANOUT)/2));
+                }
 
                 assertThat(pointers.size()).isEqualTo(keys.size() + 1);
 
@@ -94,46 +82,62 @@ public class BTreeTest {
         }
     }
 
-    @Test
-    void testDelete() throws IllegalAccessException, RecordNotFoundException {
-        for (int i = 0; i < 1500 ; i++) {
-            Record<Integer, ?> entry = new Record<>(i, "Hello");
-            bTree.insert(entry);
-        }
+    @ParameterizedTest
+    @MethodSource("testRecords")
+    void testDelete(List<Record<Integer, String>> records) throws RecordNotFoundException {
+        records.forEach(record -> {
+            bTree.insert(record);
+            assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
+        });
 
-        for (int i = 0; i < 1500 ; i++) {
-            System.out.println(i);
-            bTree.delete(i);
-            assertThat(bTree.findRecord(i)).isNull();
-        }
+        records.forEach(record -> {
+            bTree.delete(record.getKey());
+            assertThat(bTree.findRecord(record.getKey())).isNull();
+        });
     }
 
-    @Test
-    void testDelete2() throws IllegalAccessException, RecordNotFoundException {
-        for (int i = 1500; i >= 0 ; i--) {
-            Record<Integer, ?> entry = new Record<>(i, "Hello");
-            bTree.insert(entry);
-        }
-
-        for (int i = 1500; i >= 0 ; i--) {
-            System.out.println(i);
-            bTree.delete(i);
-            assertThat(bTree.findRecord(i)).isNull();
-        }
+    private static Stream<List<Record<Integer, String>>> testRecords() {
+        return Stream.of(
+                generateTestRecordsWithIncrementingKeys(),
+                generateTestRecordsWithDecrementingKeys(),
+                generateTestRecordsWithRandomizedKeys()
+        );
     }
 
-    @Test
-    void testDeleteVer3() throws IllegalAccessException {
-        Set<Integer> randomKeys = new HashSet<>();
+    private static List<Record<Integer, String>> generateTestRecordsWithIncrementingKeys() {
+        return IntStream.range(0, NUMBER_OF_TEST_RECORDS)
+                .mapToObj(key -> Record.<Integer, String> builder()
+                        .key(key)
+                        .value(String.format("%s - %s", key, "testValue"))
+                        .build())
+                .toList();
+    }
+
+    private static List<Record<Integer, String>> generateTestRecordsWithDecrementingKeys() {
+        return IntStream.iterate(NUMBER_OF_TEST_RECORDS, i -> i >= 0, i -> i - 1)
+                .mapToObj(key -> Record.<Integer, String> builder()
+                        .key(key)
+                        .value(String.format("%s - %s", key, "testValue"))
+                        .build())
+                .toList();
+    }
+
+    private static List<Record<Integer, String>> generateTestRecordsWithRandomizedKeys() {
+        Set<Integer> keys = new HashSet<>();
         Random rand = new Random();
-        for (int i = 0; i < 1500; i++) {
-            randomKeys.add(rand.nextInt());
+
+        while (keys.size() < NUMBER_OF_TEST_RECORDS) {
+            Integer randomKey = rand.nextInt();
+            if (!keys.contains(randomKey)) {
+                keys.add(randomKey);
+            }
         }
 
-        for (Integer key : randomKeys) {
-            Record<Integer, ?> entry = new Record<>(key, "Hello" + key);
-            bTree.insert(entry);
-            assertThat(bTree.findRecord(key)).isEqualTo(entry);
-        }
+        return keys.stream()
+                .map(key -> Record.<Integer, String> builder()
+                        .key(key)
+                        .value(String.format("%s - %s", key, "testValue"))
+                        .build())
+                .toList();
     }
 }

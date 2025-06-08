@@ -6,10 +6,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static com.hpham.database.b_tree.BTree.FANOUT;
 
@@ -67,40 +64,7 @@ public class BTreeNode<K extends Comparable<K>> {
 
         if (records.size() == FANOUT) {
             // The leaf node is full, so we need to split
-            BTreeNode<K> newLeafNode = createLeafNode();
-            List<Record<K, ?>> combinedRecords = this.records;
-            this.records = new ArrayList<>();
-            combinedRecords.add(newRecord);
-            combinedRecords.sort(Comparator.comparing(Record::getKey));
-
-            // split records into 2 halves
-            for (int i = 0; i <= FANOUT; i++) {
-                if (i < FANOUT/2) {
-                    this.records.add(combinedRecords.get(i));
-                } else {
-                    newLeafNode.records.add(combinedRecords.get(i));
-                }
-            }
-
-            // bubble the key up to parent node
-            K keyBubbledUp = combinedRecords.get(FANOUT/2).getKey();
-
-            if (parent == null) {
-                // parent == null implies that "this" is the root,
-                // thus we need to create a new parent node
-                BTreeNode<K> newParent = createInternalNode();
-                this.parent = newParent;
-                newLeafNode.parent = newParent;
-
-                parent.pointers.add(this);
-                parent.pointers.add(newLeafNode);
-                parent.keys.add(keyBubbledUp);
-
-                return Optional.ofNullable(parent);
-            }
-
-            newLeafNode.parent = this.parent;
-            return parent.addNewKey(keyBubbledUp, newLeafNode);
+            return splitLeafNode(this, newRecord);
         } else {
             records.add(newRecord);
             records.sort(Comparator.comparing(Record::getKey));
@@ -109,77 +73,138 @@ public class BTreeNode<K extends Comparable<K>> {
         }
     }
 
+    /**
+     * Split the overflowed node, then add new record
+     * */
+    private Optional<BTreeNode<K>> splitLeafNode(BTreeNode<K> nodeToSplit, Record<K, ?> newRecord) {
+        BTreeNode<K> newLeafNode = createLeafNode();
+        List<Record<K, ?>> combinedRecords = nodeToSplit.records;
+        nodeToSplit.records = new ArrayList<>();
+        combinedRecords.add(newRecord);
+        combinedRecords.sort(Comparator.comparing(Record::getKey));
 
+        // split records into 2 halves
+        for (int i = 0; i <= FANOUT; i++) {
+            if (i < FANOUT/2) {
+                nodeToSplit.records.add(combinedRecords.get(i));
+            } else {
+                newLeafNode.records.add(combinedRecords.get(i));
+            }
+        }
 
-    private Optional<BTreeNode<K>> addNewKey(K key, BTreeNode<K> newChildNode) {
+        // bubble the key up to parent node
+        K keyBubbledUp = combinedRecords.get(FANOUT/2).getKey();
+
+        if (nodeToSplit.parent == null) {
+            // parent == null implies that nodeToSplit is the root,
+            // thus we need to create a new parent node
+            BTreeNode<K> newParent = createInternalNode();
+            nodeToSplit.parent = newParent;
+            newLeafNode.parent = newParent;
+
+            nodeToSplit.parent.pointers.add(nodeToSplit);
+            nodeToSplit.parent.pointers.add(newLeafNode);
+            nodeToSplit.parent.keys.add(keyBubbledUp);
+
+            return Optional.ofNullable(nodeToSplit.parent);
+        }
+
+        newLeafNode.parent = nodeToSplit.parent;
+        return nodeToSplit.parent.addNewKey(keyBubbledUp, newLeafNode);
+    }
+
+    /**
+     * Add new key to the current internal node.
+     *
+     * @param newKey new key to add.
+     * @param newChildNode new child node bubbling up.
+     * @return New root of the B-Tree, {@code null} if the root does not change
+     * @throws InvalidMethodInvocationException if the current node is not an internal node
+     * */
+    private Optional<BTreeNode<K>> addNewKey(K newKey, BTreeNode<K> newChildNode) {
         if (isLeaf) {
-            throw new InvalidMethodInvocationException("Cannot call addNewKey on leaf node");
+            throw new InvalidMethodInvocationException("Cannot call addNewKey on an internal node");
         }
 
         if (pointers.size() == FANOUT) {
             // The internal node is full, so we need to split
-            BTreeNode<K> newNode = createInternalNode();
-            List<K> combinedKeys = this.keys;
-            List<BTreeNode<K>> combinedPointers = this.pointers;
-
-            this.keys = new ArrayList<>();
-            this.pointers = new ArrayList<>();
-
-            int newKeyIndex = SearchUtil.findFirstLargerIndex(key, combinedKeys);
-            combinedKeys.add(newKeyIndex, key);
-
-            // split keys into 2 halves
-            for (int i = 0; i < FANOUT; i++) {
-                if (i < FANOUT/2) {
-                    this.keys.add(combinedKeys.get(i));
-                } else if (i > FANOUT/2) {
-                    newNode.keys.add(combinedKeys.get(i));
-                }
-            }
-
-            combinedPointers.add(newKeyIndex + 1, newChildNode);
-
-            // Split pointers
-            for (int i = 0; i <= FANOUT; i++) {
-                if (i <= FANOUT/2) {
-                    this.pointers.add(combinedPointers.get(i));
-                    combinedPointers.get(i).setParent(this);
-                } else {
-                    newNode.pointers.add(combinedPointers.get(i));
-                    combinedPointers.get(i).setParent(newNode);
-                }
-            }
-
-            // bubble the key up to parent node
-            K keyBubbledUp = combinedKeys.get(FANOUT/2);
-
-            if (parent == null) {
-                // parent == null implies that "this" is the root,
-                // thus we need to create a new parent node
-                BTreeNode<K> newParent = createInternalNode();
-                this.parent = newParent;
-                newNode.parent = newParent;
-
-                parent.pointers.add(this);
-                parent.pointers.add(newNode);
-                parent.keys.add(keyBubbledUp);
-
-                return Optional.of(parent);
-            } else {
-                return parent.addNewKey(keyBubbledUp, newNode);
-            }
+            return splitInternalNode(this, newKey, newChildNode);
         } else {
-            int newKeyIndex = SearchUtil.findFirstLargerIndex(key, keys);
-            keys.add(newKeyIndex, key);
+            int newKeyIndex = SearchUtil.findFirstLargerIndex(newKey, keys);
+            keys.add(newKeyIndex, newKey);
             newChildNode.setParent(this);
             pointers.add(newKeyIndex + 1, newChildNode);
             return Optional.empty();
         }
     }
 
-    BTreeNode<K> deleteRecord(K key) {
+    /**
+     * Split an internal node
+     * */
+    private Optional<BTreeNode<K>> splitInternalNode(BTreeNode<K> nodeToSplit, K newKey, BTreeNode<K> newChildNode) {
+        BTreeNode<K> newNode = createInternalNode();
+        List<K> combinedKeys = nodeToSplit.keys;
+        List<BTreeNode<K>> combinedPointers = nodeToSplit.pointers;
+
+        nodeToSplit.keys = new ArrayList<>();
+        nodeToSplit.pointers = new ArrayList<>();
+
+        int newKeyIndex = SearchUtil.findFirstLargerIndex(newKey, combinedKeys);
+        combinedKeys.add(newKeyIndex, newKey);
+
+        // split keys into 2 halves
+        for (int i = 0; i < FANOUT; i++) {
+            if (i < FANOUT/2) {
+                nodeToSplit.keys.add(combinedKeys.get(i));
+            } else if (i > FANOUT/2) {
+                newNode.keys.add(combinedKeys.get(i));
+            }
+        }
+
+        combinedPointers.add(newKeyIndex + 1, newChildNode);
+
+        // Split pointers
+        for (int i = 0; i <= FANOUT; i++) {
+            if (i <= FANOUT/2) {
+                nodeToSplit.pointers.add(combinedPointers.get(i));
+                combinedPointers.get(i).setParent(this);
+            } else {
+                newNode.pointers.add(combinedPointers.get(i));
+                combinedPointers.get(i).setParent(newNode);
+            }
+        }
+
+        // bubble the key up to parent node
+        K keyBubbledUp = combinedKeys.get(FANOUT/2);
+
+        if (parent == null) {
+            // parent == null implies that nodeToSplit is the root,
+            // thus we need to create a new parent node
+            BTreeNode<K> newParent = createInternalNode();
+            nodeToSplit.parent = newParent;
+            newNode.parent = newParent;
+
+            nodeToSplit.parent.pointers.add(this);
+            nodeToSplit.parent.pointers.add(newNode);
+            nodeToSplit.parent.keys.add(keyBubbledUp);
+
+            return Optional.of(nodeToSplit.parent);
+        } else {
+            return nodeToSplit.parent.addNewKey(keyBubbledUp, newNode);
+        }
+    }
+
+    /**
+     * Delete a record, given a {@code key}.
+     *
+     * @param key key of the record to be deleted
+     * @return New root of the B-Tree, {@code null} if the root does not change
+     * @throws InvalidMethodInvocationException if the current node is not a leaf node
+     * @throws RecordNotFoundException if there is no record associated with the given {@code key}
+     * */
+    Optional<BTreeNode<K>> deleteRecord(K key) {
         if (!isLeaf) {
-            throw new InvalidMethodInvocationException("Cannot call deleteRecord on non-left node");
+            throw new InvalidMethodInvocationException("Cannot call deleteRecord on an internal node");
         }
 
         Record<K, ?> recordToDelete = records
@@ -196,7 +221,7 @@ public class BTreeNode<K extends Comparable<K>> {
 
         // This is the case where the current leaf node is also a root
         if (this.parent == null) {
-            return null;
+            return Optional.empty();
         }
 
         if (this.records.size() < Math.ceil(((double) FANOUT)/2)) {
@@ -204,64 +229,61 @@ public class BTreeNode<K extends Comparable<K>> {
             BTreeNode<K> nodeToMerge = findNodeToMerge(this);
 
             if (nodeToMerge == null) {
-                System.out.printf("Reshuffling, key = %s\n", key);
                 // cannot find node to merge with, need to rebalance instead
-                BTreeNode<K> nodeToRebalanceWith = findNodeToRebalanceWith(this);
-                if (nodeToRebalanceWith == null) {
-                    throw new RuntimeException("Tree in invalid state");
-                }
-                SiblingPosition positionOfNodeToRebalance = determineSiblingPosition(this, nodeToRebalanceWith);
-                int parentKeyIndexToChange;
-                Record<K, ?> recordToMove;
-                if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToRebalance)) {
-                    parentKeyIndexToChange = this.parent.pointers.indexOf(nodeToRebalanceWith);
-                    recordToMove = nodeToRebalanceWith.records.getLast();
-                    nodeToRebalanceWith.records.removeLast();
-                    this.records.addFirst(recordToMove);
-                    this.parent.keys.set(parentKeyIndexToChange, recordToMove.getKey());
-                } else {
-                    parentKeyIndexToChange = this.parent.pointers.indexOf(this);
-                    recordToMove = nodeToRebalanceWith.records.getFirst();
-                    var keyToPromote = nodeToRebalanceWith.records.get(1).getKey();
-                    nodeToRebalanceWith.records.removeFirst();
-                    this.records.addLast(recordToMove);
-                    this.parent.keys.set(parentKeyIndexToChange, keyToPromote);
-                }
-                if (this.parent.parent == null && this.parent.keys.isEmpty()) {
-                    this.parent = null;
-                    return this;
-                }
-
-                return null;
+                return reBalanceLeafNode(this);
             }
 
             SiblingPosition positionOfNodeToMerge = determineSiblingPosition(this, nodeToMerge);
 
+            int parentPointerIndexToDelete;
+            BTreeNode<K> nodeToPossiblyBeRoot;
             if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToMerge)) {
                 // Merge into the sibling
+                nodeToPossiblyBeRoot = nodeToMerge;
                 nodeToMerge.records.addAll(this.records);
-                int parentPointerIndexToDelete = this.parent.pointers.indexOf(this);
-                this.parent.pointers.remove(parentPointerIndexToDelete);
-                this.parent.keys.remove(parentPointerIndexToDelete - 1);
-                if (this.parent.parent == null && this.parent.keys.isEmpty()) {
-                    this.parent = null;
-                    return nodeToMerge;
-                }
+                parentPointerIndexToDelete = this.parent.pointers.indexOf(this);
             } else {
                 // Merge into the sibling
+                nodeToPossiblyBeRoot = this;
                 this.records.addAll(nodeToMerge.records);
-                int parentPointerIndexToDelete = this.parent.pointers.indexOf(nodeToMerge);
-                this.parent.pointers.remove(parentPointerIndexToDelete);
-                this.parent.keys.remove(parentPointerIndexToDelete - 1);
-                if (this.parent.parent == null && this.parent.keys.isEmpty()) {
-                    this.parent = null;
-                    return this;
-                }
+                parentPointerIndexToDelete = this.parent.pointers.indexOf(nodeToMerge);
+            }
+
+            this.parent.pointers.remove(parentPointerIndexToDelete);
+            this.parent.keys.remove(parentPointerIndexToDelete - 1);
+            if (this.parent.parent == null && this.parent.keys.isEmpty()) {
+                this.parent = null;
+                return Optional.of(nodeToPossiblyBeRoot);
             }
 
             return this.parent.mergeOrRebalance();
         }
-        return null;
+        return Optional.empty();
+    }
+
+    private Optional<BTreeNode<K>> reBalanceLeafNode(BTreeNode<K> underflowNode) {
+        BTreeNode<K> nodeToRebalanceWith = findNodeToRebalanceWith(underflowNode);
+        if (nodeToRebalanceWith == null) {
+            throw new RuntimeException("Tree in invalid state");
+        }
+        SiblingPosition positionOfNodeToRebalance = determineSiblingPosition(underflowNode, nodeToRebalanceWith);
+        int parentKeyIndexToChange;
+        Record<K, ?> recordToMove;
+
+        if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToRebalance)) {
+            parentKeyIndexToChange = underflowNode.parent.pointers.indexOf(nodeToRebalanceWith);
+            recordToMove = nodeToRebalanceWith.records.removeLast();
+            underflowNode.records.addFirst(recordToMove);
+            underflowNode.parent.keys.set(parentKeyIndexToChange, recordToMove.getKey());
+        } else {
+            parentKeyIndexToChange = underflowNode.parent.pointers.indexOf(underflowNode);
+            recordToMove = nodeToRebalanceWith.records.removeFirst();
+            var keyToPromote = nodeToRebalanceWith.records.getFirst().getKey();
+            underflowNode.records.addLast(recordToMove);
+            underflowNode.parent.keys.set(parentKeyIndexToChange, keyToPromote);
+        }
+
+        return Optional.empty();
     }
 
     /**
@@ -269,13 +291,13 @@ public class BTreeNode<K extends Comparable<K>> {
      *
      * @return a node that will be a new root, null if root does not change
      * */
-    private BTreeNode<K> mergeOrRebalance() {
+    private Optional<BTreeNode<K>> mergeOrRebalance() {
         if (isLeaf) {
             throw new InvalidMethodInvocationException("Cannot call mergeOrRebalance on leaf node");
         }
 
         if (this.parent == null) {
-            return null;
+            return Optional.empty();
         }
 
         // in case this is not root
@@ -286,40 +308,8 @@ public class BTreeNode<K extends Comparable<K>> {
             BTreeNode<K> nodeToMergeWith = findNodeToMerge(this);
 
             if (nodeToMergeWith == null) {
-                System.out.println("Reshuffling");
                 // cannot find node to merge with, need to rebalance instead
-                BTreeNode<K> nodeToRebalanceWith = findNodeToRebalanceWith(this);
-                if (nodeToRebalanceWith == null) {
-                    throw new RuntimeException("Tree in invalid state");
-                }
-                SiblingPosition positionOfNodeToRebalance = determineSiblingPosition(this, nodeToRebalanceWith);
-                int parentKeyIndexToChange;
-                K keyToMove;
-                if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToRebalance)) {
-                    parentKeyIndexToChange = this.parent.pointers.indexOf(nodeToRebalanceWith);
-                    var keyToPromote = nodeToRebalanceWith.keys.getLast();
-                    keyToMove = parent.keys.get(parentKeyIndexToChange);
-                    this.keys.addFirst(keyToMove);
-                    var pointerToMove = nodeToRebalanceWith.pointers.getLast();
-                    pointerToMove.setParent(this);
-                    this.pointers.addFirst(pointerToMove);
-                    nodeToRebalanceWith.keys.removeLast();
-                    nodeToRebalanceWith.pointers.removeLast();
-                    this.parent.keys.set(parentKeyIndexToChange, keyToPromote);
-                } else {
-                    parentKeyIndexToChange = this.parent.pointers.indexOf(this);
-                    keyToMove = nodeToRebalanceWith.keys.getFirst();
-
-                    var pointerToMove = nodeToRebalanceWith.pointers.getFirst();
-                    pointerToMove.setParent(this);
-                    this.pointers.addLast(pointerToMove);
-                    this.keys.addLast(this.parent.keys.get(parentKeyIndexToChange));
-                    nodeToRebalanceWith.keys.removeFirst();
-                    nodeToRebalanceWith.pointers.removeFirst();
-                    this.parent.keys.set(parentKeyIndexToChange, keyToMove);
-                }
-
-                return null;
+                return rebalanceInternalNode(this);
             }
 
             SiblingPosition positionOfNodeToMerge = determineSiblingPosition(this, nodeToMergeWith);
@@ -338,7 +328,7 @@ public class BTreeNode<K extends Comparable<K>> {
                 this.parent.keys.remove(keyToDemoteFromParent);
                 if (this.parent.parent == null && this.parent.keys.isEmpty()) {
                     nodeToMergeWith.parent = null;
-                    return nodeToMergeWith;
+                    return Optional.of(nodeToMergeWith);
                 }
             } else {
                 // Merge into the current node
@@ -354,13 +344,51 @@ public class BTreeNode<K extends Comparable<K>> {
                 this.parent.keys.remove(keyToDemoteFromParent);
                 if (this.parent.parent == null && this.parent.keys.isEmpty()) {
                     this.parent = null;
-                    return this;
+                    return Optional.of(this);
                 }
             }
             return this.parent.mergeOrRebalance();
         }
 
-        return null;
+        return Optional.empty();
+    }
+
+    /**
+     * Rebalance internal node
+     * */
+    private Optional<BTreeNode<K>> rebalanceInternalNode(BTreeNode<K> underflowNode) {
+        BTreeNode<K> nodeToRebalanceWith = findNodeToRebalanceWith(underflowNode);
+        if (nodeToRebalanceWith == null) {
+            throw new RuntimeException("Tree in invalid state");
+        }
+        SiblingPosition positionOfNodeToRebalance = determineSiblingPosition(underflowNode, nodeToRebalanceWith);
+        int parentKeyIndexToChange;
+        K keyToMove;
+        if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToRebalance)) {
+            parentKeyIndexToChange = underflowNode.parent.pointers.indexOf(nodeToRebalanceWith);
+            var keyToPromote = nodeToRebalanceWith.keys.getLast();
+            keyToMove = parent.keys.get(parentKeyIndexToChange);
+            underflowNode.keys.addFirst(keyToMove);
+            var pointerToMove = nodeToRebalanceWith.pointers.getLast();
+            pointerToMove.setParent(underflowNode);
+            underflowNode.pointers.addFirst(pointerToMove);
+            nodeToRebalanceWith.keys.removeLast();
+            nodeToRebalanceWith.pointers.removeLast();
+            underflowNode.parent.keys.set(parentKeyIndexToChange, keyToPromote);
+        } else {
+            parentKeyIndexToChange = underflowNode.parent.pointers.indexOf(underflowNode);
+            keyToMove = nodeToRebalanceWith.keys.getFirst();
+
+            var pointerToMove = nodeToRebalanceWith.pointers.getFirst();
+            pointerToMove.setParent(underflowNode);
+            underflowNode.pointers.addLast(pointerToMove);
+            underflowNode.keys.addLast(underflowNode.parent.keys.get(parentKeyIndexToChange));
+            nodeToRebalanceWith.keys.removeFirst();
+            nodeToRebalanceWith.pointers.removeFirst();
+            underflowNode.parent.keys.set(parentKeyIndexToChange, keyToMove);
+        }
+
+        return Optional.empty();
     }
 
     private BTreeNode<K> findNodeToRebalanceWith(BTreeNode<K> node) {

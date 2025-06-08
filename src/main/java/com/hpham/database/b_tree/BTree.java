@@ -1,9 +1,9 @@
 package com.hpham.database.b_tree;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 
-import java.util.Objects;
 import java.util.Optional;
 
 @Getter
@@ -17,10 +17,13 @@ public class BTree<K extends Comparable<K>> {
     }
 
     /**
+     * Insert a record into a b-tree.
      *
+     * @param record Record to be added
+     * @return added record
      * */
-    public Record<K, ?> insert(Record<K, ?> record) {
-        Objects.requireNonNull(record, "record must not be null");
+    public Record<K, ?> insert(@NonNull Record<K, ?> record) {
+        // TODO: Handle duplicate
         K key = record.getKey();
         BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
@@ -31,15 +34,20 @@ public class BTree<K extends Comparable<K>> {
         return record;
     }
 
-    public void delete(K key) {
+    /**
+     * Delete a record, given a key.
+     *
+     * @param key key of the record to delete
+     * */
+    public void delete(@NonNull K key) {
         BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
-        BTreeNode<K> newRoot = targetLeafNode.deleteRecord(key);
+        Optional<BTreeNode<K>> newRootOptional = targetLeafNode.deleteRecord(key);
 
-        if (newRoot != null) {
+        newRootOptional.ifPresent(newRoot -> {
             this.root = newRoot;
             this.root.setParent(null);
-        }
+        });
     }
 
     public Record<K, ?> findRecord(K key) {
