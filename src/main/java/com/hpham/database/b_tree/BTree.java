@@ -1,40 +1,54 @@
 package com.hpham.database.b_tree;
 
-import com.hpham.database.b_tree.exceptions.RecordNotFoundException;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
+
+import java.util.Optional;
 
 @Getter
 @Setter
+// TODO: handle a case where root is an empty node
 public class BTree<K extends Comparable<K>> {
-    public static final Integer FANOUT = 4;
+    public static final Integer FANOUT = 5;
     private BTreeNode<K> root;
 
     public BTree() {
-        root = new BTreeNode<>(Boolean.TRUE);
+        root = BTreeNode.createLeafNode();
     }
 
-    public Record<K, ?> insert(Record<K, ?> record) throws IllegalAccessException {
+    /**
+     * Insert a record into a b-tree.
+     *
+     * @param record Record to be added
+     * @return added record
+     * */
+    public Record<K, ?> insert(@NonNull Record<K, ?> record) {
+        // TODO: Handle duplicate
         K key = record.getKey();
         BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
-        BTreeNode<K> newRoot = targetLeafNode.addNewRecord(record);
+        Optional<BTreeNode<K>> newRootOptional = targetLeafNode.addNewRecord(record);
 
-        if (newRoot != null) {
-            this.root = newRoot;
-        }
+        newRootOptional.ifPresent(newRoot -> this.root = newRoot);
+
         return record;
     }
 
-    public void delete(K key) throws RecordNotFoundException, IllegalAccessException {
+    /**
+     * Delete a record, given a key.
+     *
+     * @param key key of the record to delete
+     * */
+    public void delete(@NonNull K key) {
         BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
-        BTreeNode<K> newRoot = targetLeafNode.deleteRecord(key);
+        Optional<BTreeNode<K>> newRootOptional = targetLeafNode.deleteRecord(key);
 
-        if (newRoot != null) {
+        newRootOptional.ifPresent(newRoot -> {
             this.root = newRoot;
             this.root.setParent(null);
-        }
+        });
     }
 
     public Record<K, ?> findRecord(K key) {
@@ -49,7 +63,7 @@ public class BTree<K extends Comparable<K>> {
     }
 
     /**
-     * Find the leaf node that possibly contain a record with key "key"
+     * Find the leaf node that possibly contain a record with key {@code key}
      * */
     private BTreeNode<K> findTargetLeafNode(K key) {
         BTreeNode<K> currentNode = root;

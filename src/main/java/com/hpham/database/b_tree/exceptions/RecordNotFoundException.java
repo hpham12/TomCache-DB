@@ -1,6 +1,9 @@
 package com.hpham.database.b_tree.exceptions;
 
-public class RecordNotFoundException extends Exception {
+/**
+ * {@code RecordNotFoundException} is thrown when a record is not found in the B-Tree.
+ * */
+public class RecordNotFoundException extends RuntimeException {
     private final Object key;
 
     @Override
