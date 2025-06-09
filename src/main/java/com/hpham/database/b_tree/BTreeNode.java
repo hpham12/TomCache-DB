@@ -57,7 +57,7 @@ public class BTreeNode<K extends Comparable<K>> {
      * @return New root of the B-Tree, {@code null} if the root does not change
      * @throws InvalidMethodInvocationException if this is not a leaf node
      * */
-    Optional<BTreeNode<K>> addNewRecord(Record<K, ?> newRecord) {
+    Optional<BTreeNode<K>> addNewRecord(@NonNull Record<K, ?> newRecord) {
         if (!this.isLeaf) {
             throw new InvalidMethodInvocationException("Cannot add new record to an internal node");
         }
@@ -76,7 +76,7 @@ public class BTreeNode<K extends Comparable<K>> {
     /**
      * Split the overflowed node, then add new record
      * */
-    private Optional<BTreeNode<K>> splitLeafNode(BTreeNode<K> nodeToSplit, Record<K, ?> newRecord) {
+    private Optional<BTreeNode<K>> splitLeafNode(@NonNull BTreeNode<K> nodeToSplit, @NonNull Record<K, ?> newRecord) {
         BTreeNode<K> newLeafNode = createLeafNode();
         List<Record<K, ?>> combinedRecords = nodeToSplit.records;
         nodeToSplit.records = new ArrayList<>();
@@ -121,27 +121,32 @@ public class BTreeNode<K extends Comparable<K>> {
      * @return New root of the B-Tree, {@code null} if the root does not change
      * @throws InvalidMethodInvocationException if the current node is not an internal node
      * */
-    private Optional<BTreeNode<K>> addNewKey(K newKey, BTreeNode<K> newChildNode) {
+    private Optional<BTreeNode<K>> addNewKey(@NonNull K newKey, @NonNull BTreeNode<K> newChildNode) {
         if (isLeaf) {
             throw new InvalidMethodInvocationException("Cannot call addNewKey on an internal node");
         }
 
         if (pointers.size() == FANOUT) {
             // The internal node is full, so we need to split
-            return splitInternalNode(this, newKey, newChildNode);
+            return splitInternalNodeAndAddNewKey(this, newKey, newChildNode);
         } else {
-            int newKeyIndex = SearchUtil.findFirstLargerIndex(newKey, keys);
-            keys.add(newKeyIndex, newKey);
-            newChildNode.setParent(this);
-            pointers.add(newKeyIndex + 1, newChildNode);
-            return Optional.empty();
+            // No need to split as the current node can still contain more key(s) and pointer(s)
+            return addNewKeyWithoutSplitting(this, newKey, newChildNode);
         }
+    }
+
+    private Optional<BTreeNode<K>> addNewKeyWithoutSplitting(BTreeNode<K> node, K newKey, BTreeNode<K> newChildNode) {
+        int newKeyIndex = SearchUtil.findFirstLargerIndex(newKey, keys);
+        node.keys.add(newKeyIndex, newKey);
+        newChildNode.setParent(node);
+        node.pointers.add(newKeyIndex + 1, newChildNode);
+        return Optional.empty();
     }
 
     /**
      * Split an internal node
      * */
-    private Optional<BTreeNode<K>> splitInternalNode(BTreeNode<K> nodeToSplit, K newKey, BTreeNode<K> newChildNode) {
+    private Optional<BTreeNode<K>> splitInternalNodeAndAddNewKey(@NonNull BTreeNode<K> nodeToSplit, @NonNull K newKey, @NonNull BTreeNode<K> newChildNode) {
         BTreeNode<K> newNode = createInternalNode();
         List<K> combinedKeys = nodeToSplit.keys;
         List<BTreeNode<K>> combinedPointers = nodeToSplit.pointers;
@@ -202,7 +207,7 @@ public class BTreeNode<K extends Comparable<K>> {
      * @throws InvalidMethodInvocationException if the current node is not a leaf node
      * @throws RecordNotFoundException if there is no record associated with the given {@code key}
      * */
-    Optional<BTreeNode<K>> deleteRecord(K key) {
+    Optional<BTreeNode<K>> deleteRecord(@NonNull K key) {
         if (!isLeaf) {
             throw new InvalidMethodInvocationException("Cannot call deleteRecord on an internal node");
         }
@@ -226,46 +231,23 @@ public class BTreeNode<K extends Comparable<K>> {
 
         if (this.records.size() < Math.ceil(((double) FANOUT)/2)) {
             // needs to merge/rebalance
-            BTreeNode<K> nodeToMerge = findNodeToMerge(this);
+            BTreeNode<K> nodeToMergeWith = findNodeToMerge(this);
 
-            if (nodeToMerge == null) {
+            if (nodeToMergeWith == null) {
                 // cannot find node to merge with, need to rebalance instead
-                return reBalanceLeafNode(this);
+                BTreeNode<K> nodeToRebalanceWith = findNodeToRebalanceWith(this);
+                if (nodeToRebalanceWith == null) {
+                    throw new RuntimeException("Tree in invalid state");
+                }
+                return reBalanceLeafNode(this, nodeToRebalanceWith);
             }
 
-            SiblingPosition positionOfNodeToMerge = determineSiblingPosition(this, nodeToMerge);
-
-            int parentPointerIndexToDelete;
-            BTreeNode<K> nodeToPossiblyBeRoot;
-            if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToMerge)) {
-                // Merge into the sibling
-                nodeToPossiblyBeRoot = nodeToMerge;
-                nodeToMerge.records.addAll(this.records);
-                parentPointerIndexToDelete = this.parent.pointers.indexOf(this);
-            } else {
-                // Merge into the sibling
-                nodeToPossiblyBeRoot = this;
-                this.records.addAll(nodeToMerge.records);
-                parentPointerIndexToDelete = this.parent.pointers.indexOf(nodeToMerge);
-            }
-
-            this.parent.pointers.remove(parentPointerIndexToDelete);
-            this.parent.keys.remove(parentPointerIndexToDelete - 1);
-            if (this.parent.parent == null && this.parent.keys.isEmpty()) {
-                this.parent = null;
-                return Optional.of(nodeToPossiblyBeRoot);
-            }
-
-            return this.parent.mergeOrRebalance();
+            return mergeLeafNodes(this, nodeToMergeWith);
         }
         return Optional.empty();
     }
 
-    private Optional<BTreeNode<K>> reBalanceLeafNode(BTreeNode<K> underflowNode) {
-        BTreeNode<K> nodeToRebalanceWith = findNodeToRebalanceWith(underflowNode);
-        if (nodeToRebalanceWith == null) {
-            throw new RuntimeException("Tree in invalid state");
-        }
+    private Optional<BTreeNode<K>> reBalanceLeafNode(@NonNull BTreeNode<K> underflowNode, @NonNull BTreeNode<K> nodeToRebalanceWith) {
         SiblingPosition positionOfNodeToRebalance = determineSiblingPosition(underflowNode, nodeToRebalanceWith);
         int parentKeyIndexToChange;
         Record<K, ?> recordToMove;
@@ -284,6 +266,33 @@ public class BTreeNode<K extends Comparable<K>> {
         }
 
         return Optional.empty();
+    }
+
+    private Optional<BTreeNode<K>> mergeLeafNodes(@NonNull BTreeNode<K> underFlowNode, @NonNull BTreeNode<K> nodeToMergeWith) {
+        SiblingPosition positionOfNodeToMerge = determineSiblingPosition(underFlowNode, nodeToMergeWith);
+
+        int parentPointerIndexToDelete;
+        BTreeNode<K> nodeToPossiblyBeRoot;
+        if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToMerge)) {
+            // Merge into the sibling
+            nodeToPossiblyBeRoot = nodeToMergeWith;
+            nodeToMergeWith.records.addAll(underFlowNode.records);
+            parentPointerIndexToDelete = this.parent.pointers.indexOf(this);
+        } else {
+            // Merge into the sibling
+            nodeToPossiblyBeRoot = underFlowNode;
+            underFlowNode.records.addAll(nodeToMergeWith.records);
+            parentPointerIndexToDelete = underFlowNode.parent.pointers.indexOf(nodeToMergeWith);
+        }
+
+        underFlowNode.parent.pointers.remove(parentPointerIndexToDelete);
+        underFlowNode.parent.keys.remove(parentPointerIndexToDelete - 1);
+        if (underFlowNode.parent.parent == null && underFlowNode.parent.keys.isEmpty()) {
+            underFlowNode.parent = null;
+            return Optional.of(nodeToPossiblyBeRoot);
+        }
+
+        return this.parent.mergeOrRebalance();
     }
 
     /**
@@ -309,58 +318,62 @@ public class BTreeNode<K extends Comparable<K>> {
 
             if (nodeToMergeWith == null) {
                 // cannot find node to merge with, need to rebalance instead
-                return rebalanceInternalNode(this);
+                BTreeNode<K> nodeToRebalanceWith = findNodeToRebalanceWith(this);
+                if (nodeToRebalanceWith == null) {
+                    throw new RuntimeException("Tree in invalid state");
+                }
+                return rebalanceInternalNode(this, nodeToRebalanceWith);
             }
 
-            SiblingPosition positionOfNodeToMerge = determineSiblingPosition(this, nodeToMergeWith);
-
-            if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToMerge)) {
-                // Merge into the sibling
-                nodeToMergeWith.pointers.addAll(this.pointers);
-                for (BTreeNode<K> pointer : this.pointers) {
-                    pointer.setParent(nodeToMergeWith);
-                }
-                int parentPointerIndexToDelete = this.parent.pointers.indexOf(this);
-                K keyToDemoteFromParent = this.parent.keys.get(parentPointerIndexToDelete - 1);
-                nodeToMergeWith.keys.add(keyToDemoteFromParent);
-                nodeToMergeWith.keys.addAll(this.keys);
-                this.parent.pointers.remove(parentPointerIndexToDelete);
-                this.parent.keys.remove(keyToDemoteFromParent);
-                if (this.parent.parent == null && this.parent.keys.isEmpty()) {
-                    nodeToMergeWith.parent = null;
-                    return Optional.of(nodeToMergeWith);
-                }
-            } else {
-                // Merge into the current node
-                this.pointers.addAll(nodeToMergeWith.pointers);
-                for (BTreeNode<K> pointer : nodeToMergeWith.pointers) {
-                    pointer.setParent(this);
-                }
-                int parentPointerIndexToDelete = this.parent.pointers.indexOf(nodeToMergeWith);
-                K keyToDemoteFromParent = this.parent.keys.get(parentPointerIndexToDelete - 1);
-                this.keys.add(keyToDemoteFromParent);
-                this.keys.addAll(nodeToMergeWith.keys);
-                this.parent.pointers.remove(parentPointerIndexToDelete);
-                this.parent.keys.remove(keyToDemoteFromParent);
-                if (this.parent.parent == null && this.parent.keys.isEmpty()) {
-                    this.parent = null;
-                    return Optional.of(this);
-                }
-            }
-            return this.parent.mergeOrRebalance();
+            return mergeInternalNodes(this, nodeToMergeWith);
         }
 
         return Optional.empty();
     }
 
+    private Optional<BTreeNode<K>> mergeInternalNodes(@NonNull BTreeNode<K> underflowNode, @NonNull BTreeNode<K> nodeToMergeWith) {
+        SiblingPosition positionOfNodeToMerge = determineSiblingPosition(underflowNode, nodeToMergeWith);
+
+        if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToMerge)) {
+            // Merge into the sibling
+            nodeToMergeWith.pointers.addAll(underflowNode.pointers);
+            for (BTreeNode<K> pointer : underflowNode.pointers) {
+                pointer.setParent(nodeToMergeWith);
+            }
+            int parentPointerIndexToDelete = underflowNode.parent.pointers.indexOf(underflowNode);
+            K keyToDemoteFromParent = underflowNode.parent.keys.get(parentPointerIndexToDelete - 1);
+            nodeToMergeWith.keys.add(keyToDemoteFromParent);
+            nodeToMergeWith.keys.addAll(underflowNode.keys);
+            underflowNode.parent.pointers.remove(parentPointerIndexToDelete);
+            underflowNode.parent.keys.remove(keyToDemoteFromParent);
+            if (underflowNode.parent.parent == null && underflowNode.parent.keys.isEmpty()) {
+                nodeToMergeWith.parent = null;
+                return Optional.of(nodeToMergeWith);
+            }
+        } else {
+            // Merge into the current node
+            underflowNode.pointers.addAll(nodeToMergeWith.pointers);
+            for (BTreeNode<K> pointer : nodeToMergeWith.pointers) {
+                pointer.setParent(underflowNode);
+            }
+            int parentPointerIndexToDelete = underflowNode.parent.pointers.indexOf(nodeToMergeWith);
+            K keyToDemoteFromParent = underflowNode.parent.keys.get(parentPointerIndexToDelete - 1);
+            underflowNode.keys.add(keyToDemoteFromParent);
+            underflowNode.keys.addAll(nodeToMergeWith.keys);
+            underflowNode.parent.pointers.remove(parentPointerIndexToDelete);
+            underflowNode.parent.keys.remove(keyToDemoteFromParent);
+            if (underflowNode.parent.parent == null && underflowNode.parent.keys.isEmpty()) {
+                underflowNode.parent = null;
+                return Optional.of(underflowNode);
+            }
+        }
+        return underflowNode.parent.mergeOrRebalance();
+    }
+
     /**
      * Rebalance internal node
      * */
-    private Optional<BTreeNode<K>> rebalanceInternalNode(BTreeNode<K> underflowNode) {
-        BTreeNode<K> nodeToRebalanceWith = findNodeToRebalanceWith(underflowNode);
-        if (nodeToRebalanceWith == null) {
-            throw new RuntimeException("Tree in invalid state");
-        }
+    private Optional<BTreeNode<K>> rebalanceInternalNode(@NonNull BTreeNode<K> underflowNode, @NonNull BTreeNode<K> nodeToRebalanceWith) {
         SiblingPosition positionOfNodeToRebalance = determineSiblingPosition(underflowNode, nodeToRebalanceWith);
         int parentKeyIndexToChange;
         K keyToMove;
@@ -391,7 +404,7 @@ public class BTreeNode<K extends Comparable<K>> {
         return Optional.empty();
     }
 
-    private BTreeNode<K> findNodeToRebalanceWith(BTreeNode<K> node) {
+    private BTreeNode<K> findNodeToRebalanceWith(@NonNull BTreeNode<K> node) {
         BTreeNode<K> parent = node.getParent();
         List<BTreeNode<K>> parentPointers = parent.getPointers();
         BTreeNode<K> leftSibling;
@@ -453,7 +466,7 @@ public class BTreeNode<K extends Comparable<K>> {
      *
      * @return sibling node that will be used to merge
      * */
-    private BTreeNode<K> findNodeToMerge(BTreeNode<K> node) {
+    private BTreeNode<K> findNodeToMerge(@NonNull BTreeNode<K> node) {
         BTreeNode<K> parent = node.getParent();
         List<BTreeNode<K>> parentPointers = parent.getPointers();
         BTreeNode<K> leftSibling;

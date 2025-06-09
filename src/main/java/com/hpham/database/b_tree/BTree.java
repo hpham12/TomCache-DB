@@ -8,6 +8,7 @@ import java.util.Optional;
 
 @Getter
 @Setter
+// TODO: handle a case where root is an empty node
 public class BTree<K extends Comparable<K>> {
     public static final Integer FANOUT = 5;
     private BTreeNode<K> root;

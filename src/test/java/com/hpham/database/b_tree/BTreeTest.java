@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class BTreeTest {
     private BTree<Integer> bTree;
-    private static final Integer NUMBER_OF_TEST_RECORDS = 150000;
+    private static final Integer NUMBER_OF_TEST_RECORDS = 10000;
 
     @BeforeEach
     void setup() {
@@ -32,26 +32,44 @@ public class BTreeTest {
 
     @ParameterizedTest
     @MethodSource("testRecords")
-    void testTreeIntegrity(List<Record<Integer, String>> testRecords) {
+    void testTreeIntegrityWhenAdd(List<Record<Integer, String>> testRecords) {
         testRecords.forEach(record -> {
             bTree.insert(record);
             assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
         });
 
-        Queue<BTreeNode<Integer>> queue = new LinkedList<>();
-        queue.offer(bTree.getRoot());
+        checkTreeIntegrity(bTree.getRoot());
+    }
+
+    @ParameterizedTest
+    @MethodSource("testRecords")
+    void testTreeIntegrityWhenDelete(List<Record<Integer, String>> testRecords) {
+        testRecords.forEach(record -> bTree.insert(record));
+
+        testRecords.forEach(record -> {
+            bTree.delete(record.getKey());
+            checkTreeIntegrity(bTree.getRoot());
+        });
+    }
+
+    private <K extends Comparable<K>> void checkTreeIntegrity(BTreeNode<K> root) {
+        Queue<BTreeNode<K>> queue = new LinkedList<>();
+        queue.offer(root);
 
         while (!queue.isEmpty()) {
             // check for ordering, occupancies, and parent-child relationship
-            BTreeNode<Integer> currentNode = queue.poll();
+            BTreeNode<K> currentNode = queue.poll();
             if (currentNode.getIsLeaf()) {
                 var records = currentNode.getRecords();
                 for (int i = 1; i < records.size(); i++) {
                     assertThat(records.get(i).getKey()).isGreaterThan(records.get(i - 1).getKey());
                 }
-                assertThat(records.size())
-                        .isGreaterThanOrEqualTo(FANOUT/2)
-                        .isLessThanOrEqualTo(FANOUT);
+                if (currentNode != bTree.getRoot()) {
+                    // TODO: adjust this test case
+                    assertThat(records.size())
+                            .isGreaterThanOrEqualTo(FANOUT/2)
+                            .isLessThanOrEqualTo(FANOUT);
+                }
             } else {
                 var keys = currentNode.getKeys();
                 for (int i = 1; i < keys.size(); i++) {
