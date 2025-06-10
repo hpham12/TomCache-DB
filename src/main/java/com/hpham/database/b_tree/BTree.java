@@ -46,12 +46,21 @@ public class BTree<K extends Comparable<K>> {
         Optional<BTreeNode<K>> newRootOptional = targetLeafNode.deleteRecord(key);
 
         newRootOptional.ifPresent(newRoot -> {
-            this.root = newRoot;
-            this.root.setParent(null);
+            boolean isNewRootEmpty = newRoot.getIsLeaf()? newRoot.getRecords().isEmpty() : newRoot.getKeys().isEmpty();
+
+            if (isNewRootEmpty) {
+                this.root = null;
+            } else {
+                this.root = newRoot;
+                this.root.setParent(null);
+            }
         });
     }
 
     public Record<K, ?> findRecord(K key) {
+        if (this.root == null) {
+            return null;
+        }
         BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
         int recordIndex = SearchUtil.searchForIndex(key, targetLeafNode.getRecords().stream().map(Record::getKey).toList());
 
