@@ -113,6 +113,10 @@ public class BTreeNode<K extends Comparable<K>> {
         return nodeToSplit.parent.addNewKey(keyBubbledUp, newLeafNode);
     }
 
+    public Boolean isRootNode() {
+        return this.parent == null;
+    }
+
     /**
      * Add new key to the current internal node.
      *
@@ -226,7 +230,7 @@ public class BTreeNode<K extends Comparable<K>> {
 
         // This is the case where the current leaf node is also a root
         if (this.parent == null) {
-            return Optional.empty();
+            return Optional.of(this);
         }
 
         if (this.records.size() < Math.ceil(((double) FANOUT)/2)) {

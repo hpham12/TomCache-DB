@@ -53,6 +53,9 @@ public class BTreeTest {
     }
 
     private <K extends Comparable<K>> void checkTreeIntegrity(BTreeNode<K> root) {
+        if (root == null) {
+            return;
+        }
         Queue<BTreeNode<K>> queue = new LinkedList<>();
         queue.offer(root);
 
@@ -64,10 +67,13 @@ public class BTreeTest {
                 for (int i = 1; i < records.size(); i++) {
                     assertThat(records.get(i).getKey()).isGreaterThan(records.get(i - 1).getKey());
                 }
-                if (currentNode != bTree.getRoot()) {
-                    // TODO: adjust this test case
+                if (!currentNode.isRootNode()) {
                     assertThat(records.size())
                             .isGreaterThanOrEqualTo(FANOUT/2)
+                            .isLessThanOrEqualTo(FANOUT);
+                } else {
+                    assertThat(records.size())
+                            .isGreaterThanOrEqualTo(1)
                             .isLessThanOrEqualTo(FANOUT);
                 }
             } else {
