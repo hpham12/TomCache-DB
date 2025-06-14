@@ -1,7 +1,9 @@
 package com.hpham.database.b_tree;
 
+import com.hpham.database.b_tree.exceptions.RecordAlreadyExistException;
 import com.hpham.database.b_tree.exceptions.RecordNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -11,6 +13,7 @@ import java.util.stream.Stream;
 
 import static com.hpham.database.b_tree.BTree.FANOUT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class BTreeTest {
     private BTree<Integer> bTree;
@@ -23,7 +26,7 @@ public class BTreeTest {
 
     @ParameterizedTest
     @MethodSource("testRecords")
-    void testAdd(List<Record<Integer, String>> records) {
+    void testAdd(List<Record<Integer, Object>> records) {
         records.forEach(record -> {
             bTree.insert(record);
             assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
@@ -32,7 +35,7 @@ public class BTreeTest {
 
     @ParameterizedTest
     @MethodSource("testRecords")
-    void testTreeIntegrityWhenAdd(List<Record<Integer, String>> testRecords) {
+    void testTreeIntegrityWhenAdd(List<Record<Integer, Object>> testRecords) {
         testRecords.forEach(record -> {
             bTree.insert(record);
             assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
@@ -43,7 +46,7 @@ public class BTreeTest {
 
     @ParameterizedTest
     @MethodSource("testRecords")
-    void testTreeIntegrityWhenDelete(List<Record<Integer, String>> testRecords) {
+    void testTreeIntegrityWhenDelete(List<Record<Integer, Object>> testRecords) {
         testRecords.forEach(record -> bTree.insert(record));
 
         testRecords.forEach(record -> {
@@ -108,7 +111,7 @@ public class BTreeTest {
 
     @ParameterizedTest
     @MethodSource("testRecords")
-    void testDelete(List<Record<Integer, String>> records) throws RecordNotFoundException {
+    void testDelete(List<Record<Integer, Object>> records) throws RecordNotFoundException {
         records.forEach(record -> {
             bTree.insert(record);
             assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
@@ -163,5 +166,45 @@ public class BTreeTest {
                         .value(String.format("%s - %s", key, "testValue"))
                         .build())
                 .toList();
+    }
+
+    @Test
+    void insertNewRecordWithExistingKey() {
+        bTree.insert(Record.<Integer, Object> builder().key(1).value("val-1").build());
+        assertThrows(
+                RecordAlreadyExistException.class,
+                () -> bTree.insert(Record.<Integer, Object> builder().key(1).value("val-2").build())
+        );
+    }
+
+    @Test
+    void deleteRecordWithInvalidKey() {
+        bTree.insert(Record.<Integer, Object> builder().key(1).value("val-1").build());
+        assertThrows(
+                RecordNotFoundException.class,
+                () -> bTree.delete(2)
+        );
+    }
+
+    @Test
+    void updateRecordWithExistingKey() {
+        bTree.insert(Record.<Integer, Object> builder().key(1).value("val-1").build());
+        assertThat(
+                bTree.update(Record.<Integer, Object> builder().key(1).value("val-2").build())
+        ).satisfies(record -> {
+            assertThat(record.getKey()).isEqualTo(1);
+            assertThat(record.getValue()).isEqualTo("val-2");
+        });
+
+        assertThat(bTree.findRecord(1).getValue()).isEqualTo("val-2");
+    }
+
+    @Test
+    void updateInvalidRecord() {
+        bTree.insert(Record.<Integer, Object> builder().key(1).value("val-1").build());
+        assertThrows(
+                RecordNotFoundException.class,
+                () -> bTree.delete(2)
+        );
     }
 }

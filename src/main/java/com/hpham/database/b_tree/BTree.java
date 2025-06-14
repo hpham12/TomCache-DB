@@ -8,7 +8,6 @@ import java.util.Optional;
 
 @Getter
 @Setter
-// TODO: handle a case where root is an empty node
 public class BTree<K extends Comparable<K>> {
     public static final Integer FANOUT = 5;
     private BTreeNode<K> root;
@@ -23,8 +22,7 @@ public class BTree<K extends Comparable<K>> {
      * @param record Record to be added
      * @return added record
      * */
-    public Record<K, ?> insert(@NonNull Record<K, ?> record) {
-        // TODO: Handle duplicate
+    public Record<K, Object> insert(@NonNull Record<K, Object> record) {
         K key = record.getKey();
         BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
@@ -33,6 +31,19 @@ public class BTree<K extends Comparable<K>> {
         newRootOptional.ifPresent(newRoot -> this.root = newRoot);
 
         return record;
+    }
+
+    /**
+     * Update a record
+     *
+     * @param record new record to update
+     * @return updated record
+     * */
+    public Record<K, Object> update(@NonNull Record<K, Object> record) {
+        K key = record.getKey();
+        BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
+
+        return targetLeafNode.updateRecord(record);
     }
 
     /**
@@ -57,7 +68,7 @@ public class BTree<K extends Comparable<K>> {
         });
     }
 
-    public Record<K, ?> findRecord(K key) {
+    public Record<K, Object> findRecord(K key) {
         if (this.root == null) {
             return null;
         }

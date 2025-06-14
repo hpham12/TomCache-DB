@@ -1,6 +1,7 @@
 package com.hpham.database.b_tree;
 
 import com.hpham.database.b_tree.exceptions.InvalidMethodInvocationException;
+import com.hpham.database.b_tree.exceptions.RecordAlreadyExistException;
 import com.hpham.database.b_tree.exceptions.RecordNotFoundException;
 import lombok.Getter;
 import lombok.NonNull;
@@ -23,7 +24,7 @@ public class BTreeNode<K extends Comparable<K>> {
     private Boolean isLeaf;
     private List<BTreeNode<K>> pointers;
     private List<K> keys;
-    private List<Record<K, ?>> records;
+    private List<Record<K, Object>> records;
     private BTreeNode<K> parent;
 
     private BTreeNode(Boolean isLeaf) {
@@ -51,23 +52,54 @@ public class BTreeNode<K extends Comparable<K>> {
     }
 
     /**
+     * Update an existing record
+     *
+     * @throws InvalidMethodInvocationException if the record key is not found
+     * */
+    Record<K, Object> updateRecord(@NonNull Record<K, Object> newRecord) {
+        if (!this.isLeaf) {
+            throw new InvalidMethodInvocationException("Cannot update record in an internal node");
+        }
+        
+        Optional<Record<K, Object>> existingRecordOptional = this.records.stream()
+                .filter(record -> record.getKey().equals(newRecord.getKey()))
+                .findAny();
+
+        if (existingRecordOptional.isEmpty()) {
+            throw new RecordNotFoundException(newRecord.getKey());
+        }
+        
+        return existingRecordOptional.map(r -> {
+            r.setValue(newRecord.getValue());
+            return r;
+        }).get();
+    }
+
+    /**
      * Add new record to the current leaf node.
      *
      * @param newRecord new record to add
      * @return New root of the B-Tree, {@code null} if the root does not change
      * @throws InvalidMethodInvocationException if this is not a leaf node
      * */
-    Optional<BTreeNode<K>> addNewRecord(@NonNull Record<K, ?> newRecord) {
+    Optional<BTreeNode<K>> addNewRecord(@NonNull Record<K, Object> newRecord) {
         if (!this.isLeaf) {
             throw new InvalidMethodInvocationException("Cannot add new record to an internal node");
         }
 
-        if (records.size() == FANOUT) {
+        // check for duplicate
+        boolean hasDuplicate = this.records.stream().anyMatch(record -> record.getKey().equals(newRecord.getKey()));
+
+        if (hasDuplicate) {
+            throw new RecordAlreadyExistException(newRecord.getKey());
+        }
+
+        if (this.records.size() == FANOUT) {
             // The leaf node is full, so we need to split
             return splitLeafNode(this, newRecord);
         } else {
-            records.add(newRecord);
-            records.sort(Comparator.comparing(Record::getKey));
+            this.records.add(newRecord);
+            this.records.sort(Comparator.comparing(Record::getKey));
 
             return Optional.empty();
         }
@@ -76,9 +108,9 @@ public class BTreeNode<K extends Comparable<K>> {
     /**
      * Split the overflowed node, then add new record
      * */
-    private Optional<BTreeNode<K>> splitLeafNode(@NonNull BTreeNode<K> nodeToSplit, @NonNull Record<K, ?> newRecord) {
+    private Optional<BTreeNode<K>> splitLeafNode(@NonNull BTreeNode<K> nodeToSplit, @NonNull Record<K , Object> newRecord) {
         BTreeNode<K> newLeafNode = createLeafNode();
-        List<Record<K, ?>> combinedRecords = nodeToSplit.records;
+        List<Record<K , Object>> combinedRecords = nodeToSplit.records;
         nodeToSplit.records = new ArrayList<>();
         combinedRecords.add(newRecord);
         combinedRecords.sort(Comparator.comparing(Record::getKey));
@@ -216,7 +248,7 @@ public class BTreeNode<K extends Comparable<K>> {
             throw new InvalidMethodInvocationException("Cannot call deleteRecord on an internal node");
         }
 
-        Record<K, ?> recordToDelete = records
+        Record<K , Object> recordToDelete = records
                 .stream()
                 .filter(r -> r.getKey().equals(key))
                 .findAny()
@@ -254,7 +286,7 @@ public class BTreeNode<K extends Comparable<K>> {
     private Optional<BTreeNode<K>> reBalanceLeafNode(@NonNull BTreeNode<K> underflowNode, @NonNull BTreeNode<K> nodeToRebalanceWith) {
         SiblingPosition positionOfNodeToRebalance = determineSiblingPosition(underflowNode, nodeToRebalanceWith);
         int parentKeyIndexToChange;
-        Record<K, ?> recordToMove;
+        Record<K , Object> recordToMove;
 
         if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToRebalance)) {
             parentKeyIndexToChange = underflowNode.parent.pointers.indexOf(nodeToRebalanceWith);
