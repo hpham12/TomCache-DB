@@ -22,7 +22,10 @@
 
 - External Data Source Sync: Connects to your existing databases or APIs to refresh and update cache entries automatically.
 
-## Requirements:
-- Java 21
-- 
+## Requirements and Software Installations:
+- IntelliJ version 2025.1.2 and above
+- Amazon Corretto JDK 21. It is advisable to download with with sdk man: https://sdkman.io
+- `Checkstyle-IDEA` plugin:
+  - First, download the plugin from Marketplace. This can be done inside IntelliJ
+  - Configure IDEA to use Google checkstyle: Settings -> Tools -> Checkstyle
 
