@@ -6,6 +6,7 @@ import com.hpham.database.btree.exceptions.InvalidMethodInvocationException;
 import com.hpham.database.btree.exceptions.RecordAlreadyExistException;
 import com.hpham.database.btree.exceptions.RecordNotFoundException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -30,11 +31,11 @@ public class BTreeNode<K extends Comparable<K>> {
 
   private BTreeNode(Boolean isLeaf) {
     this.isLeaf = isLeaf;
+    keys = new ArrayList<>();
     if (isLeaf) {
       records = new ArrayList<>();
     } else {
       pointers = new ArrayList<>();
-      keys = new ArrayList<>();
     }
   }
 
@@ -102,7 +103,9 @@ public class BTreeNode<K extends Comparable<K>> {
       return splitLeafNode(this, newRecord);
     } else {
       this.records.add(newRecord);
+      this.keys.add(newRecord.getKey());
       this.records.sort(Comparator.comparing(Record::getKey));
+      Collections.sort(this.keys);
 
       return Optional.empty();
     }
@@ -118,15 +121,19 @@ public class BTreeNode<K extends Comparable<K>> {
     final BTreeNode<K> newLeafNode = createLeafNode();
     List<Record<K, Object>> combinedRecords = nodeToSplit.records;
     nodeToSplit.records = new ArrayList<>();
+    nodeToSplit.keys = new ArrayList<>();
     combinedRecords.add(newRecord);
     combinedRecords.sort(Comparator.comparing(Record::getKey));
 
     // split records into 2 halves
     for (int i = 0; i <= FANOUT; i++) {
+      Record<K, Object> currentRecord = combinedRecords.get(i);
       if (i < FANOUT / 2) {
-        nodeToSplit.records.add(combinedRecords.get(i));
+        nodeToSplit.keys.add(currentRecord.getKey());
+        nodeToSplit.records.add(currentRecord);
       } else {
-        newLeafNode.records.add(combinedRecords.get(i));
+        newLeafNode.keys.add(currentRecord.getKey());
+        newLeafNode.records.add(currentRecord);
       }
     }
 
@@ -273,6 +280,7 @@ public class BTreeNode<K extends Comparable<K>> {
     }
 
     this.records.remove(recordToDelete);
+    this.keys.remove(recordToDelete.getKey());
 
     // This is the case where the current leaf node is also a root
     if (this.parent == null) {
@@ -311,13 +319,17 @@ public class BTreeNode<K extends Comparable<K>> {
     if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToRebalance)) {
       parentKeyIndexToChange = underflowNode.parent.pointers.indexOf(nodeToRebalanceWith);
       recordToMove = nodeToRebalanceWith.records.removeLast();
+      nodeToRebalanceWith.keys.removeLast();
       underflowNode.records.addFirst(recordToMove);
+      underflowNode.keys.addFirst(recordToMove.getKey());
       underflowNode.parent.keys.set(parentKeyIndexToChange, recordToMove.getKey());
     } else {
       parentKeyIndexToChange = underflowNode.parent.pointers.indexOf(underflowNode);
       recordToMove = nodeToRebalanceWith.records.removeFirst();
+      nodeToRebalanceWith.keys.removeFirst();
       var keyToPromote = nodeToRebalanceWith.records.getFirst().getKey();
       underflowNode.records.addLast(recordToMove);
+      underflowNode.keys.addLast(recordToMove.getKey());
       underflowNode.parent.keys.set(parentKeyIndexToChange, keyToPromote);
     }
 
@@ -339,11 +351,13 @@ public class BTreeNode<K extends Comparable<K>> {
       // Merge into the sibling
       nodeToPossiblyBeRoot = nodeToMergeWith;
       nodeToMergeWith.records.addAll(underFlowNode.records);
+      nodeToMergeWith.keys.addAll(underFlowNode.keys);
       parentPointerIndexToDelete = this.parent.pointers.indexOf(this);
     } else {
       // Merge into the sibling
       nodeToPossiblyBeRoot = underFlowNode;
       underFlowNode.records.addAll(nodeToMergeWith.records);
+      underFlowNode.keys.addAll(nodeToMergeWith.keys);
       parentPointerIndexToDelete = underFlowNode.parent.pointers.indexOf(nodeToMergeWith);
     }
 
