@@ -74,7 +74,10 @@ public class BTreeTest {
       BTreeNode<K> currentNode = queue.poll();
       if (currentNode.getIsLeaf()) {
         var records = currentNode.getRecords();
+        var keys = currentNode.getKeys();
+        assertThat(records.size()).isEqualTo(keys.size());
         for (int i = 1; i < records.size(); i++) {
+          assertThat(records.get(i).getKey()).isEqualTo(keys.get(i));
           assertThat(records.get(i).getKey()).isGreaterThan(records.get(i - 1).getKey());
         }
         if (!currentNode.isRootNode()) {
