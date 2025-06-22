@@ -1,11 +1,15 @@
-package com.hpham.database.btree;
+package btree;
 
-import static com.hpham.database.btree.BTree.FANOUT;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
+import com.hpham.database.btree.BTree;
+import com.hpham.database.btree.BTreeNode;
+import com.hpham.database.btree.Record;
 import com.hpham.database.btree.exceptions.RecordAlreadyExistException;
 import com.hpham.database.btree.exceptions.RecordNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,10 +18,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+
+import static com.hpham.database.btree.BTree.FANOUT;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Test suite for {@link BTree}.
@@ -33,7 +37,7 @@ public class BTreeTest {
 
   @ParameterizedTest
   @MethodSource("testRecords")
-  void testAdd(List<Record<Integer, Object>> records) {
+  void testAdd(List<com.hpham.database.btree.Record<Integer, Object>> records) {
     records.forEach(record -> {
       bTree.insert(record);
       assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
@@ -42,7 +46,7 @@ public class BTreeTest {
 
   @ParameterizedTest
   @MethodSource("testRecords")
-  void testTreeIntegrityWhenAdd(List<Record<Integer, Object>> testRecords) {
+  void testTreeIntegrityWhenAdd(List<com.hpham.database.btree.Record<Integer, Object>> testRecords) {
     testRecords.forEach(record -> {
       bTree.insert(record);
       assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
@@ -53,7 +57,7 @@ public class BTreeTest {
 
   @ParameterizedTest
   @MethodSource("testRecords")
-  void testTreeIntegrityWhenDelete(List<Record<Integer, Object>> testRecords) {
+  void testTreeIntegrityWhenDelete(List<com.hpham.database.btree.Record<Integer, Object>> testRecords) {
     testRecords.forEach(record -> bTree.insert(record));
 
     testRecords.forEach(record -> {
@@ -121,7 +125,7 @@ public class BTreeTest {
 
   @ParameterizedTest
   @MethodSource("testRecords")
-  void testDelete(List<Record<Integer, Object>> records) throws RecordNotFoundException {
+  void testDelete(List<com.hpham.database.btree.Record<Integer, Object>> records) throws RecordNotFoundException {
     records.forEach(record -> {
       bTree.insert(record);
       assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
@@ -133,7 +137,7 @@ public class BTreeTest {
     });
   }
 
-  private static Stream<List<Record<Integer, String>>> testRecords() {
+  private static Stream<List<com.hpham.database.btree.Record<Integer, String>>> testRecords() {
     return Stream.of(
         generateTestRecordsWithIncrementingKeys(),
         generateTestRecordsWithDecrementingKeys(),
@@ -141,25 +145,25 @@ public class BTreeTest {
     );
   }
 
-  private static List<Record<Integer, String>> generateTestRecordsWithIncrementingKeys() {
+  private static List<com.hpham.database.btree.Record<Integer, String>> generateTestRecordsWithIncrementingKeys() {
     return IntStream.range(0, NUMBER_OF_TEST_RECORDS)
-        .mapToObj(key -> Record.<Integer, String>builder()
+        .mapToObj(key -> com.hpham.database.btree.Record.<Integer, String>builder()
             .key(key)
             .value(String.format("%s - %s", key, "testValue"))
             .build())
         .toList();
   }
 
-  private static List<Record<Integer, String>> generateTestRecordsWithDecrementingKeys() {
+  private static List<com.hpham.database.btree.Record<Integer, String>> generateTestRecordsWithDecrementingKeys() {
     return IntStream.iterate(NUMBER_OF_TEST_RECORDS, i -> i >= 0, i -> i - 1)
-        .mapToObj(key -> Record.<Integer, String>builder()
+        .mapToObj(key -> com.hpham.database.btree.Record.<Integer, String>builder()
             .key(key)
             .value(String.format("%s - %s", key, "testValue"))
             .build())
         .toList();
   }
 
-  private static List<Record<Integer, String>> generateTestRecordsWithRandomizedKeys() {
+  private static List<com.hpham.database.btree.Record<Integer, String>> generateTestRecordsWithRandomizedKeys() {
     Set<Integer> keys = new HashSet<>();
     Random rand = new Random();
 
@@ -169,7 +173,7 @@ public class BTreeTest {
     }
 
     return keys.stream()
-        .map(key -> Record.<Integer, String>builder()
+        .map(key -> com.hpham.database.btree.Record.<Integer, String>builder()
             .key(key)
             .value(String.format("%s - %s", key, "testValue"))
             .build())
@@ -178,16 +182,16 @@ public class BTreeTest {
 
   @Test
   void insertNewRecordWithExistingKey() {
-    bTree.insert(Record.<Integer, Object>builder().key(1).value("val-1").build());
+    bTree.insert(com.hpham.database.btree.Record.<Integer, Object>builder().key(1).value("val-1").build());
     assertThrows(
         RecordAlreadyExistException.class,
-        () -> bTree.insert(Record.<Integer, Object>builder().key(1).value("val-2").build())
+        () -> bTree.insert(com.hpham.database.btree.Record.<Integer, Object>builder().key(1).value("val-2").build())
     );
   }
 
   @Test
   void deleteRecordWithInvalidKey() {
-    bTree.insert(Record.<Integer, Object>builder().key(1).value("val-1").build());
+    bTree.insert(com.hpham.database.btree.Record.<Integer, Object>builder().key(1).value("val-1").build());
     assertThrows(
         RecordNotFoundException.class,
         () -> bTree.delete(2)
@@ -196,9 +200,9 @@ public class BTreeTest {
 
   @Test
   void updateRecordWithExistingKey() {
-    bTree.insert(Record.<Integer, Object>builder().key(1).value("val-1").build());
+    bTree.insert(com.hpham.database.btree.Record.<Integer, Object>builder().key(1).value("val-1").build());
     assertThat(
-        bTree.update(Record.<Integer, Object>builder().key(1).value("val-2").build())
+        bTree.update(com.hpham.database.btree.Record.<Integer, Object>builder().key(1).value("val-2").build())
     ).satisfies(record -> {
       assertThat(record.getKey()).isEqualTo(1);
       assertThat(record.getValue()).isEqualTo("val-2");

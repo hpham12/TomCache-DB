@@ -1,18 +1,19 @@
 package com.hpham.database.btree;
 
-import static com.hpham.database.btree.BTree.FANOUT;
-
 import com.hpham.database.btree.exceptions.InvalidMethodInvocationException;
 import com.hpham.database.btree.exceptions.RecordAlreadyExistException;
 import com.hpham.database.btree.exceptions.RecordNotFoundException;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.Setter;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
+
+import static com.hpham.database.btree.BTree.FANOUT;
 
 /**
  * Class representing B-Tree node.

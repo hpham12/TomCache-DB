@@ -1,2 +1,4 @@
 rootProject.name = 'TomCache-DB'
 
+include 'btree-core'
+include 'btree-disk'

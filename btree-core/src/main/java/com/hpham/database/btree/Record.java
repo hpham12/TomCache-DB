@@ -1,5 +1,6 @@
 package com.hpham.database.btree;
 
+import com.hpham.database.contract.TreeRecord;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -8,7 +9,7 @@ import lombok.Setter;
 
 /**
  * Class representing a record that is stored in the leaf node.
- * */
+ */
 @Getter
 @Setter
 @AllArgsConstructor
