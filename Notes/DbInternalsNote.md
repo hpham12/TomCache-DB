@@ -209,5 +209,116 @@
 - To create a disk-based implementatiion, we need to go into details of how to layout B-Tree nodes on disk and compose on-disl layout using data-encoding formats
 
 ## Chapter 3: File Formats
-t
+### Binary encoding
+- To store data on disk efficiently, it needs to be encoded using a format that is compact and easy to serialize and deserialize. 
+- Here we discuss the main principles used to create efficient page layouts. These principles apply to any binary format.
 
+#### Primitive Types
+- Most numeric data types are represented as fixed-size values. When working with multibyte numeric values, it is important to use the same byte-order(endianness) for both encoding and decoding:
+  - Big-endian: The order starts from the most-significant byte (MSB), followed by the bytes in decreasing significance order
+  - Little-endian: The order starts from the lest-significant bytes (LSB), followed by the bytes in increasing significance order
+  
+	![](Endianness.png)
+
+- Different numeric types may vary in size. byte value is 8 bits, short is 2 bytes (16 bits), int is 4 bytes (32 bits), and long is 8 bytes (64 bits)
+
+- Floating-point numbers (float and double) are represented by their sign, fraction, and exponent
+
+#### Strings and Variable-Size Data
+- All primitive numeric types have a fixed size. Composing more complex values together is much like a `struct` in C. We can combine primitive values into structures and use fixed-size arrays or pointers to other memory regions
+
+- Strings and other variable-size data types (such as arrays or fixed-size data) can be serialized as a number, representing the length of the array or string, followed by `size` bytes: the actual data:
+
+```
+String {
+	size	unit_16
+	data	byte[size]
+}
+```
+
+#### Bit-Packed Data: Booleans, Enums, and Flags
+- Booleans can be represented either by using a single byte, or encoding true and false as 1 and 0 values. Since a boolean has only two values, using an entire byte for its representation is wasteful, and developers often batch boolean values together in groups of eight, each boolean occupying just one bit. We say that every 1 bit is set and every 0 bit is unset or empty.
+
+- Enums, short for enumerated types, can be represented as integers and are often used in binary formats and communication protocols. Enums are used to represent often-repeated low-cardinality values. For example, we can encode a B-Tree node type using an enum:
+
+```
+enum NodeType {
+	ROOT,		// 0x00h
+	INTERNAL,	// 0x01h
+	LEAF		// 0x02h
+}
+```
+
+- Another closely related concept is flags, kind of a combination of packed booleans and enums. Flags can represent nonmutually exclusive named boolean parameters. For example, we can use flags to denote whether or not the page holds value cells, whether the values are fixed-size or variable-size, and whether or not there are over‐flow pages associated with this node. Since every bit represents a flag value, we can only use power-of-two values for masks (since powers of two in binary always have a single set bit)
+
+- Just like packed booleans, flag values can be read and written from the packed value using bitmasks and bitwise operators
+
+### General Principles
+- The file usually starts with a fixed-size header and may end with a fixed-size trailer, which hold auxiliary information that should be accessed quickly or is required for decoding the rest of the file. The rest of the file is split into pages
+
+![](File-organization.png)
+
+#### Page Structure
+- DBMS store data records in data and index files. These files are partitioned into fixed-sze units called `pages`, which often have a size of multiple filesystem blocks. Page sizes usually range from 4-16Kb
+
+- Each B-Tree node occupies one page or multiple page linked together, so in the context of B-Trees, the terms `node` and `page` (and even `block`) are often used interchangeably
+
+#### Slotted Pages
+- When storing variable-size records, the main problem is free space management: reclaiming the space occupied by removed records. For example: If we attempt to put a record of size n into the space previously occupied by the record of size m, unless m == n or we can find another record that has a size exactly m – n, this space will remain unused
+
+- Space reclamation can be done by simply rewriting the page and moving the records around, but we need to preserve record offsets, since out-of-page pointers might be using these offsets. It is desirable to do that while minimizing space waste, too.
+  
+- To summarize, we need a page format that allows us to:
+  - Store variable-size records with a minimal overhead.
+  - Reclaim space occupied by the removed records.
+  - Reference records in the page without regard to their exact locations.
+
+--> SLOTTED PAGE!
+
+- We organize the page into a collection of `slots` or `cells` and split out pointers and cells in 2 independent memory regions residing on different sides of the page. This means that we only need to reorganize pointers addressing the cells to preserve the order, and deleting a record can be done either by nullifying its pointer or removing it.
+
+- A slotted page has a fixed-size header that holds important information about the page and cells. Cells may differ in size and can hold arbitrary data: keys, pointers, data records, etc...
+
+![](Slotted-page.png)
+
+- Problems solved:
+  - Minimal overhead: the only overhead incurred by slotted pages is a pointer array holding offsets to the exact positions where the records are stored.
+  - Space reclamation: space can be reclaimed by defragmenting and rewriting the page.
+  - Dynamic layout: from outside the page, slots are referenced only by their IDs, so the exact location is internal to the page.
+
+#### Cell Layout
+- Using flags, enums, and primitive values, we can start designing the cell layout, then combine cells into pages, and compose a tree out of the pages.
+
+- On a cell level, we have a distinction between key and key-value cells. Key cells hold a separator key and a pointer to the page between two neighboring pointers. Key-value cells hold keys and data records associated with them.
+
+- To compose a key cell, we need to know:
+  - Cell type (can be inferred from the page metadata)
+  - Key size
+  - ID of the child page this cell is pointing to
+  - Key bytes
+	![](Key-cell.png)
+
+- To compose a key-value cell:
+	- Cell type (can be inferred from the page metadata)
+	- Key size
+	- ID of the child page this cell is pointing to
+	- Key bytes
+    - Data record bytyes
+	
+#### Combining Cells into Slotted Pages
+- To organize cells into pages, we can use the slotted page technique that we discussed previously. We append cells to the right of the page (toward its end), and keep cell offsets/pointers in the left side of the page
+	![](Cell-to-page.png)
+
+- Keys can be inserted out of order and their logical sorted order is kept by sorting cell offset pointers in key order. This design allows appending cells to the page with mini‐mal effort, since cells don’t have to be relocated during insert, update, or delete operations.
+
+#### Managing Variable-Size Data
+- Removing an item from the page does not have to remove the actual cell and shift other cells to reoccupy the freed space. Instead, the cell can be marked as deleted and an in-memory availability list can be updated with the amount of freed memory and a pointer to the freed value. The availability list stores offsets of freed segments and their sizes. When inserting a new cell, we first check the availability list to find if there’s a segment where it may fit
+	![](Availability-list.png)
+
+- Fit is calculated based on the strategy:
+  - First fit: Might cause large overhead, since the space remaining after reusing the
+ 	fist suitable segment might be too small to fit any other cell, so it will be effectively wasted.
+
+  - Best fit: Try to find a segment for which insertion leaves the smallest remainder
+
+- If we cannot find enough consecutive bytes to fit the new cell but there are enough fragmented bytes available, live cells are read and rewritten, defragmenting the page and reclaiming space for new writes. If there’s not enough free space even after defragmentation, we have to create an overflow page
