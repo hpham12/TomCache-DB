@@ -1,6 +1,9 @@
-package com.hpham.database.btree;
+package com.hpham.database.btree_disk;
 
 import java.util.Optional;
+
+import com.hpham.database.btree_disk.dataTypes.SortableField;
+import com.hpham.database.btree_disk.util.SearchUtil;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -28,7 +31,7 @@ public class BTree<K extends Comparable<K>> {
    * @return added record
    */
   public Record<K, Object> insert(@NonNull Record<K, Object> record) {
-    K key = record.getKey();
+    SortableField<K> key = record.getKey();
     BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
     Optional<BTreeNode<K>> newRootOptional = targetLeafNode.addNewRecord(record);
@@ -45,7 +48,7 @@ public class BTree<K extends Comparable<K>> {
    * @return updated record
    */
   public Record<K, Object> update(@NonNull Record<K, Object> record) {
-    K key = record.getKey();
+    SortableField<K> key = record.getKey();
     BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
     return targetLeafNode.updateRecord(record);
@@ -56,7 +59,7 @@ public class BTree<K extends Comparable<K>> {
    *
    * @param key key of the record to delete
    */
-  public void delete(@NonNull K key) {
+  public void delete(@NonNull SortableField<K> key) {
     BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
     Optional<BTreeNode<K>> newRootOptional = targetLeafNode.deleteRecord(key);
@@ -79,7 +82,7 @@ public class BTree<K extends Comparable<K>> {
    *
    * @param key the search key
    * */
-  public Record<K, Object> findRecord(K key) {
+  public Record<K, Object> findRecord(SortableField<K> key) {
     if (this.root == null) {
       return null;
     }
@@ -101,7 +104,7 @@ public class BTree<K extends Comparable<K>> {
    *
    * @param key the search key
    */
-  private BTreeNode<K> findTargetLeafNode(K key) {
+  private BTreeNode<K> findTargetLeafNode(SortableField<K> key) {
     BTreeNode<K> currentNode = root;
 
     while (!currentNode.getIsLeaf()) {

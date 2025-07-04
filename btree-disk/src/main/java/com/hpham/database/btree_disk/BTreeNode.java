@@ -1,18 +1,27 @@
-package com.hpham.database.btree;
+package com.hpham.database.btree_disk;
 
-import static com.hpham.database.btree.BTree.FANOUT;
-
-import com.hpham.database.btree.exceptions.InvalidMethodInvocationException;
-import com.hpham.database.btree.exceptions.RecordAlreadyExistException;
-import com.hpham.database.btree.exceptions.RecordNotFoundException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import com.hpham.database.btree_disk.annotations.ForSerialization;
+import com.hpham.database.btree_disk.dataTypes.IntField;
+import com.hpham.database.btree_disk.dataTypes.SortableField;
+import com.hpham.database.btree_disk.exceptions.InvalidMethodInvocationException;
+import com.hpham.database.btree_disk.exceptions.RecordAlreadyExistException;
+import com.hpham.database.btree_disk.exceptions.RecordNotFoundException;
+import com.hpham.database.btree_disk.util.SearchUtil;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.IntStream;
+
+import static com.hpham.database.btree_disk.BTree.FANOUT;
 
 /**
  * Class representing B-Tree node.
@@ -23,19 +32,31 @@ import lombok.Setter;
 @Getter
 @Setter
 public class BTreeNode<K extends Comparable<K>> {
+  @ForSerialization
   private Boolean isLeaf;
+  @ForSerialization
+  private List<SortableField<K>> keys;
+  @ForSerialization
+  private List<IntField> pointerOffsets;
+  @ForSerialization
+  private List<IntField> recordOffsets;
+  @ForSerialization
+  IntField parentOffset;
+
   private List<BTreeNode<K>> pointers;
-  private List<K> keys;
   private List<Record<K, Object>> records;
   private BTreeNode<K> parent;
+
 
   private BTreeNode(Boolean isLeaf) {
     this.isLeaf = isLeaf;
     keys = new ArrayList<>();
     if (isLeaf) {
       records = new ArrayList<>();
+      recordOffsets = new ArrayList<>();
     } else {
       pointers = new ArrayList<>();
+      pointerOffsets = new ArrayList<>();
     }
   }
 
@@ -138,7 +159,7 @@ public class BTreeNode<K extends Comparable<K>> {
     }
 
     // bubble the key up to parent node
-    K keyBubbledUp = combinedRecords.get(FANOUT / 2).getKey();
+    SortableField<K> keyBubbledUp = combinedRecords.get(FANOUT / 2).getKey();
 
     if (nodeToSplit.parent == null) {
       // parent == null implies that nodeToSplit is the root,
@@ -170,7 +191,7 @@ public class BTreeNode<K extends Comparable<K>> {
    * @return New root of the B-Tree, {@code null} if the root does not change
    * @throws InvalidMethodInvocationException if the current node is not an internal node
    */
-  private Optional<BTreeNode<K>> addNewKey(@NonNull K newKey, @NonNull BTreeNode<K> newChildNode) {
+  private Optional<BTreeNode<K>> addNewKey(@NonNull SortableField<K> newKey, @NonNull BTreeNode<K> newChildNode) {
     if (isLeaf) {
       throw new InvalidMethodInvocationException("Cannot call addNewKey on an internal node");
     }
@@ -186,7 +207,7 @@ public class BTreeNode<K extends Comparable<K>> {
 
   private Optional<BTreeNode<K>> addNewKeyWithoutSplitting(
       BTreeNode<K> node,
-      K newKey,
+      SortableField<K> newKey,
       BTreeNode<K> newChildNode
   ) {
     int newKeyIndex = SearchUtil.findFirstLargerIndex(newKey, keys);
@@ -201,11 +222,11 @@ public class BTreeNode<K extends Comparable<K>> {
    */
   private Optional<BTreeNode<K>> splitInternalNodeAndAddNewKey(
       @NonNull BTreeNode<K> nodeToSplit,
-      @NonNull K newKey,
+      @NonNull SortableField<K> newKey,
       @NonNull BTreeNode<K> newChildNode
   ) {
     final BTreeNode<K> newNode = createInternalNode();
-    List<K> combinedKeys = nodeToSplit.keys;
+    List<SortableField<K>> combinedKeys = nodeToSplit.keys;
     final List<BTreeNode<K>> combinedPointers = nodeToSplit.pointers;
 
     nodeToSplit.keys = new ArrayList<>();
@@ -237,7 +258,7 @@ public class BTreeNode<K extends Comparable<K>> {
     }
 
     // bubble the key up to parent node
-    K keyBubbledUp = combinedKeys.get(FANOUT / 2);
+    SortableField<K> keyBubbledUp = combinedKeys.get(FANOUT / 2);
 
     if (parent == null) {
       // parent == null implies that nodeToSplit is the root,
@@ -264,7 +285,7 @@ public class BTreeNode<K extends Comparable<K>> {
    * @throws InvalidMethodInvocationException if the current node is not a leaf node
    * @throws RecordNotFoundException          if there is no record associated with the given {@code key}.
    */
-  Optional<BTreeNode<K>> deleteRecord(@NonNull K key) {
+  Optional<BTreeNode<K>> deleteRecord(@NonNull SortableField<K> key) {
     if (!isLeaf) {
       throw new InvalidMethodInvocationException("Cannot call deleteRecord on an internal node");
     }
@@ -423,7 +444,7 @@ public class BTreeNode<K extends Comparable<K>> {
         pointer.setParent(nodeToMergeWith);
       }
       int parentPointerIndexToDelete = underflowNode.parent.pointers.indexOf(underflowNode);
-      K keyToDemoteFromParent = underflowNode.parent.keys.get(parentPointerIndexToDelete - 1);
+      SortableField<K> keyToDemoteFromParent = underflowNode.parent.keys.get(parentPointerIndexToDelete - 1);
       nodeToMergeWith.keys.add(keyToDemoteFromParent);
       nodeToMergeWith.keys.addAll(underflowNode.keys);
       underflowNode.parent.pointers.remove(parentPointerIndexToDelete);
@@ -439,7 +460,7 @@ public class BTreeNode<K extends Comparable<K>> {
         pointer.setParent(underflowNode);
       }
       int parentPointerIndexToDelete = underflowNode.parent.pointers.indexOf(nodeToMergeWith);
-      K keyToDemoteFromParent = underflowNode.parent.keys.get(parentPointerIndexToDelete - 1);
+      SortableField<K> keyToDemoteFromParent = underflowNode.parent.keys.get(parentPointerIndexToDelete - 1);
       underflowNode.keys.add(keyToDemoteFromParent);
       underflowNode.keys.addAll(nodeToMergeWith.keys);
       underflowNode.parent.pointers.remove(parentPointerIndexToDelete);
@@ -464,7 +485,7 @@ public class BTreeNode<K extends Comparable<K>> {
         nodeToRebalanceWith
     );
     int parentKeyIndexToChange;
-    K keyToMove;
+    SortableField<K> keyToMove;
     if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToRebalance)) {
       parentKeyIndexToChange = underflowNode.parent.pointers.indexOf(nodeToRebalanceWith);
       final var keyToPromote = nodeToRebalanceWith.keys.getLast();
@@ -648,5 +669,30 @@ public class BTreeNode<K extends Comparable<K>> {
   private enum SiblingPosition {
     TO_THE_LEFT,
     TO_THE_RIGHT
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <K extends Comparable<K>> BTreeNode<K> deserialize(byte[] bytes) {
+    ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+    BTreeNode<K> treeNode;
+    char isLeafByte = byteBuffer.getChar();
+    if (isLeafByte == 1) {
+      treeNode = createLeafNode();
+      int numKey = byteBuffer.getInt();
+      // TODO: check type
+      IntStream.range(0, numKey)
+          .forEach(i -> treeNode.keys.add((SortableField<K>) SortableField.fromValue(byteBuffer.getInt())));
+      int numPointers = byteBuffer.getInt();
+      IntStream.range(0, numPointers)
+          .forEach(i -> treeNode.pointerOffsets.add(IntField.fromValue(byteBuffer.getInt())));
+      char hasParent = byteBuffer.getChar();
+      if (hasParent != 0) {
+        treeNode.parentOffset = IntField.fromValue(byteBuffer.getInt());
+      }
+    } else {
+      treeNode = createInternalNode();
+    }
+
+    return treeNode;
   }
 }

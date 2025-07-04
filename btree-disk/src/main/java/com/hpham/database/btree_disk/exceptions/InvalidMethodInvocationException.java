@@ -1,4 +1,4 @@
-package com.hpham.database.btree.exceptions;
+package com.hpham.database.btree_disk.exceptions;
 
 /**
  * {@code InvalidMethodInvocationException} is thrown when a method is called on a tree node

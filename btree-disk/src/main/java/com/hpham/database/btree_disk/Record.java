@@ -1,5 +1,6 @@
-package com.hpham.database.btree;
+package com.hpham.database.btree_disk;
 
+import com.hpham.database.btree_disk.dataTypes.SortableField;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,7 +15,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class Record<K extends Comparable<K>, V> implements Comparable<Record<K, V>> {
-  private @NonNull K key;
+  private @NonNull SortableField<K> key;
   private @NonNull V value;
 
   @Override

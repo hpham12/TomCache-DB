@@ -1,4 +1,4 @@
-package com.hpham.database.btree.exceptions;
+package com.hpham.database.btree_disk.exceptions;
 
 public class RecordAlreadyExistException extends RuntimeException {
   private final Object key;

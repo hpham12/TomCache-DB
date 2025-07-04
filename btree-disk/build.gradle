@@ -9,9 +9,9 @@ repositories {
     mavenCentral()
 }
 
-dependencies {
-    implementation project(":btree-core")
-}
+//dependencies {
+//    implementation project(":btree-core")
+//}
 
 test {
     useJUnitPlatform()

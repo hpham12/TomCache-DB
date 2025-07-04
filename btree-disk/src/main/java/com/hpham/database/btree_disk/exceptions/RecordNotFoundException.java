@@ -1,4 +1,4 @@
-package com.hpham.database.btree.exceptions;
+package com.hpham.database.btree_disk.exceptions;
 
 /**
  * {@code RecordNotFoundException} is thrown when a record is not found in the B-Tree.
