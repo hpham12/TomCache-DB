@@ -2,7 +2,8 @@ package com.hpham.database.btree_disk.dataTypes;
 
 import lombok.Builder;
 
-import static com.hpham.database.btree_disk.constants.DataTypeSizes.INT_SIZE_BYTES;
+import static com.hpham.database.btree_disk.constants.DataConstants.INT_SIZE_BYTES;
+import static com.hpham.database.btree_disk.constants.DataConstants.STRING_TYPE_SIGNAL;
 
 /**
  * Class representing a string field.
@@ -20,11 +21,14 @@ public class StringField extends SortableField<String> {
    *        byte[length]  content;
    *      }
    * </pre>
+   * Padding is added to make sure size is {@code STRING_SIZE_BYTES}
    * */
   @Override
   public byte[] serialize() {
     int stringLength = value.length();
-    byte[] bytes = new byte[INT_SIZE_BYTES + stringLength];
+    assert stringLength < 46;
+
+    byte[] bytes = new byte[50];
     int currentByteIndex = 0;
     for (int i = INT_SIZE_BYTES - 1; i >= 0; i--) {
       bytes[currentByteIndex] = (byte) ((stringLength >> (i * 8)));
@@ -81,6 +85,11 @@ public class StringField extends SortableField<String> {
     }
 
     return false;
+  }
+
+  @Override
+  public char typeSignal() {
+    return STRING_TYPE_SIGNAL;
   }
 
   public static StringField fromValue(String value) {
