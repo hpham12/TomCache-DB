@@ -1,0 +1,18 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'com.hpham.database'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+//dependencies {
+//    implementation project(":btree-core")
+//}
+
+test {
+    useJUnitPlatform()
+}
