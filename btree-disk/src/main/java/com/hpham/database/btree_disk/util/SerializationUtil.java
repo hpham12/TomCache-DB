@@ -10,17 +10,21 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
+import static com.hpham.database.btree_disk.constants.DataTypeSizes.BOOL_SIZE_BYTES;
+import static com.hpham.database.btree_disk.constants.DataTypeSizes.INT_SIZE_BYTES;
+import static com.hpham.database.btree_disk.constants.DataTypeSizes.POINTER_SIZE_BYTES;
+
 public class SerializationUtil {
   /**
    * Immutable template to calculate leaf node size.
    */
   private static final Map<String, Integer> leafNodeSizes = Map.of(
-      "isLeaf", 1,
-      "numKeys", 4,
+      "isLeaf", BOOL_SIZE_BYTES,
+      "numKeys", INT_SIZE_BYTES,
       "keys", 0,  //to be overridden
-      "hasParent", 1,
-      "parentOffset", 8,
-      "numRecords", 4,
+      "hasParent", BOOL_SIZE_BYTES,
+      "parentOffset", POINTER_SIZE_BYTES,
+      "numRecords", INT_SIZE_BYTES,
       "recordsOffset", 0 //to be overridden
   );
 
@@ -28,12 +32,12 @@ public class SerializationUtil {
    * Immutable template to calculate internal node size.
    */
   private static final Map<String, Integer> internalNodeSizes = Map.of(
-      "isLeaf", 1,
-      "numKeys", 4,
+      "isLeaf", BOOL_SIZE_BYTES,
+      "numKeys", INT_SIZE_BYTES,
       "keys", 0,  //to be overridden
-      "hasParent", 1,
-      "parentOffset", 8,
-      "numPointers", 4,
+      "hasParent", BOOL_SIZE_BYTES,
+      "parentOffset", POINTER_SIZE_BYTES,
+      "numPointers", INT_SIZE_BYTES,
       "pointersOffset", 0   //to be overridden
   );
 
@@ -43,17 +47,20 @@ public class SerializationUtil {
       sizes = new HashMap<>(leafNodeSizes);
       sizes.put(
           "recordsOffset",
-          Optional.ofNullable(node.getRecordOffsets()).map(p -> p.size() * 8).orElse(0)
+          Optional.ofNullable(node.getRecordOffsets())
+              .map(p -> p.size() * POINTER_SIZE_BYTES).orElse(0)
       );
     } else {
       sizes = new HashMap<>(internalNodeSizes);
       sizes.put(
           "pointersOffset",
-          Optional.ofNullable(node.getPointerOffsets()).map(p -> p.size() * 8).orElse(0)
+          Optional.ofNullable(node.getPointerOffsets())
+              .map(p -> p.size() * POINTER_SIZE_BYTES).orElse(0)
       );
     }
 
-    sizes.put("keys", node.getKeys().size() * 4);
+    // TODO: check type
+    sizes.put("keys", node.getKeys().size() * INT_SIZE_BYTES);
 
     int totalBytes = sizes.values().stream().reduce(Integer::sum).get();
     ByteBuffer byteBuffer = ByteBuffer.allocateDirect(totalBytes);

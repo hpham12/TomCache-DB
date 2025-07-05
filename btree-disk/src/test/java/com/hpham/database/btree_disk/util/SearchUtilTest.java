@@ -1,6 +1,5 @@
-package com.hpham.database.btree_disk;
+package com.hpham.database.btree_disk.util;
 
-import com.hpham.database.btree_disk.util.SearchUtil;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
