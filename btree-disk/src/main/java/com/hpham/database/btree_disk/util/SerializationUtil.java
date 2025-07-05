@@ -12,9 +12,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
+import static com.hpham.database.btree_disk.BTree.FANOUT;
 import static com.hpham.database.btree_disk.constants.DataConstants.BOOL_SIZE_BYTES;
 import static com.hpham.database.btree_disk.constants.DataConstants.INT_SIZE_BYTES;
 import static com.hpham.database.btree_disk.constants.DataConstants.INT_TYPE_SIGNAL;
+import static com.hpham.database.btree_disk.constants.DataConstants.PAGE_SIZE_BYTES;
 import static com.hpham.database.btree_disk.constants.DataConstants.POINTER_SIZE_BYTES;
 import static com.hpham.database.btree_disk.constants.DataConstants.STRING_SIZE_BYTES;
 import static com.hpham.database.btree_disk.constants.DataConstants.STRING_TYPE_SIGNAL;
@@ -46,65 +48,48 @@ public class SerializationUtil {
       "hasParent", BOOL_SIZE_BYTES,
       "parentOffset", POINTER_SIZE_BYTES,
       "numPointers", INT_SIZE_BYTES,
-      "pointersOffset", 0   //to be overridden
+      "pointersOffset", POINTER_SIZE_BYTES   //to be overridden
   );
 
   public static <K extends Comparable<K>> ByteBuffer serialize(BTreeNode<K> node) {
-    Map<String, Integer> sizes;
-    if (node.getIsLeaf()) {
-      sizes = new HashMap<>(leafNodeSizes);
-      sizes.put(
-          "recordsOffset",
-          Optional.ofNullable(node.getRecordOffsets())
-              .map(p -> p.size() * POINTER_SIZE_BYTES).orElse(0)
-      );
-    } else {
-      sizes = new HashMap<>(internalNodeSizes);
-      sizes.put(
-          "pointersOffset",
-          Optional.ofNullable(node.getPointerOffsets())
-              .map(p -> p.size() * POINTER_SIZE_BYTES).orElse(0)
-      );
-    }
-
-    // check type
-    char typeSignal = node.getKeys().getFirst().typeSignal();
-    switch (typeSignal) {
-      case INT_TYPE_SIGNAL -> sizes.put("keys", node.getKeys().size() * INT_SIZE_BYTES);
-      case STRING_TYPE_SIGNAL -> sizes.put("keys", node.getKeys().size() * STRING_SIZE_BYTES);
-    }
-
-
-    int totalBytes = sizes.values().stream().reduce(Integer::sum).get();
-    ByteBuffer byteBuffer = ByteBuffer.allocateDirect(totalBytes);
+    ByteBuffer byteBuffer = ByteBuffer.allocateDirect(PAGE_SIZE_BYTES);
     byteBuffer.mark();
 
     byteBuffer.putChar((char) (node.getIsLeaf() ? 1 : 0));
-    byteBuffer.putInt(node.getKeys().size());
-    byteBuffer.putChar(typeSignal);
-    node.getKeys().forEach(key -> byteBuffer.put(key.serialize()));
-    if (node.getIsLeaf()) {
-      // pointers
-      byteBuffer.putInt(0);
 
+    if (node.getParent() == null) {
+      byteBuffer.putChar((char) 0);
+      byteBuffer.putInt(0);
+    } else {
+      byteBuffer.putChar((char) 1);
+      byteBuffer.put(node.getParentOffset().serialize());
+    }
+
+    if (node.getIsLeaf()) {
       // records
-      byteBuffer.putInt(node.getRecords().size());
+      byteBuffer.putInt(node.getRecordOffsets().size());
       node.getRecordOffsets().forEach(recordOffset -> byteBuffer.put(recordOffset.serialize()));
+
+      for (int i = node.getRecordOffsets().size(); i < FANOUT; i++) {
+        byteBuffer.putInt(0);
+      }
     } else {
       // pointers
       byteBuffer.putInt(node.getPointers().size());
       node.getPointerOffsets().forEach(pointerOffset -> byteBuffer.put(pointerOffset.serialize()));
 
-      // records
-      byteBuffer.putInt(0);
+      // add padding to make the size constant
+      for (int i = node.getPointerOffsets().size(); i < FANOUT; i++) {
+        byteBuffer.putInt(0);
+      }
     }
 
-    if (node.getParent() == null) {
-      byteBuffer.putChar((char) 0);
-    } else {
-      byteBuffer.putChar((char) 1);
-      byteBuffer.put(node.getParentOffset().serialize());
-    }
+    byteBuffer.putInt(node.getKeys().size());
+
+    char typeSignal = node.getKeys().getFirst().typeSignal();
+    byteBuffer.putChar(typeSignal);
+
+    node.getKeys().forEach(key -> byteBuffer.put(key.serialize()));
 
     byteBuffer.reset();
     return byteBuffer;
@@ -117,37 +102,45 @@ public class SerializationUtil {
     char isLeafByte = byteBuffer.getChar();
     if (isLeafByte == 1) {
       treeNode = BTreeNode.createLeafNode();
-      int numKey = byteBuffer.getInt();
-
-      // TODO: expand type support
-      if (numKey > 0) {
-        int typeSignal = byteBuffer.getChar();
-        switch (typeSignal) {
-          case INT_TYPE_SIGNAL -> IntStream.range(0, numKey)
-              .forEach(i -> treeNode.getKeys().add(
-                  (SortableField<K>) Field.fromValue(byteBuffer.getInt()))
-              );
-
-          case STRING_TYPE_SIGNAL -> IntStream.range(0, numKey)
-              .forEach(i -> {
-                byte[] stringBytes = new byte[STRING_SIZE_BYTES];
-                byteBuffer.get(stringBytes);
-                treeNode.getKeys().add(
-                        (SortableField<K>) Field.fromValue(StringField.deserialize(stringBytes, 0)));
-                  }
-              );
-        }
-      }
-
-      int numPointers = byteBuffer.getInt();
-      IntStream.range(0, numPointers)
-          .forEach(i -> treeNode.getPointerOffsets().add(IntField.fromValue(byteBuffer.getInt())));
-      char hasParent = byteBuffer.getChar();
-      if (hasParent != 0) {
-        treeNode.setParentOffset(IntField.fromValue(byteBuffer.getInt()));
-      }
     } else {
       treeNode = BTreeNode.createInternalNode();
+    }
+
+    char hasParent = byteBuffer.getChar();
+
+    int parentOffset = byteBuffer.getInt();
+    if (hasParent != 0) {
+      treeNode.setParentOffset(IntField.fromValue(parentOffset));
+    }
+
+    int numRecords = byteBuffer.getInt();
+    IntStream.range(0, numRecords)
+        .forEach(i -> treeNode.getRecordOffsets().add(IntField.fromValue(byteBuffer.getInt())));
+
+    for (int i = numRecords; i < FANOUT; i++) {
+      byteBuffer.getInt();
+    }
+
+    int numKey = byteBuffer.getInt();
+
+    // TODO: expand type support
+    if (numKey > 0) {
+      int typeSignal = byteBuffer.getChar();
+      switch (typeSignal) {
+        case INT_TYPE_SIGNAL -> IntStream.range(0, numKey)
+            .forEach(i -> treeNode.getKeys().add(
+                (SortableField<K>) Field.fromValue(byteBuffer.getInt()))
+            );
+
+        case STRING_TYPE_SIGNAL -> IntStream.range(0, numKey)
+            .forEach(i -> {
+                  byte[] stringBytes = new byte[STRING_SIZE_BYTES];
+                  byteBuffer.get(stringBytes);
+                  treeNode.getKeys().add(
+                      (SortableField<K>) Field.fromValue(StringField.deserialize(stringBytes, 0)));
+                }
+            );
+      }
     }
 
     return treeNode;

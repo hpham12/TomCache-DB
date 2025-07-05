@@ -12,18 +12,21 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
 
 public class StorageManager {
+  private static final Random rand = new Random();
   public File createFile() throws IOException {
-   File file =  new File("index.tc");
+
+    File file = new File(String.format("index-%d.tc", rand.nextInt(0, Integer.MAX_VALUE)));
 
     file.createNewFile();
 
-   return file;
+    return file;
   }
 
   public void writeFile(ByteBuffer bb, File file) {
