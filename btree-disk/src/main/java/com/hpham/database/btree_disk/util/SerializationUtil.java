@@ -1,11 +1,14 @@
 package com.hpham.database.btree_disk.util;
 
 import com.hpham.database.btree_disk.BTreeNode;
+import com.hpham.database.btree_disk.dataTypes.IntField;
+import com.hpham.database.btree_disk.dataTypes.SortableField;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 public class SerializationUtil {
   /**
@@ -84,5 +87,30 @@ public class SerializationUtil {
 
     byteBuffer.reset();
     return byteBuffer;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <K extends Comparable<K>> BTreeNode<K> deserialize(byte[] bytes) {
+    ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+    BTreeNode<K> treeNode;
+    char isLeafByte = byteBuffer.getChar();
+    if (isLeafByte == 1) {
+      treeNode = BTreeNode.createLeafNode();
+      int numKey = byteBuffer.getInt();
+      // TODO: check type
+      IntStream.range(0, numKey)
+          .forEach(i -> treeNode.getKeys().add((SortableField<K>) SortableField.fromValue(byteBuffer.getInt())));
+      int numPointers = byteBuffer.getInt();
+      IntStream.range(0, numPointers)
+          .forEach(i -> treeNode.getPointerOffsets().add(IntField.fromValue(byteBuffer.getInt())));
+      char hasParent = byteBuffer.getChar();
+      if (hasParent != 0) {
+        treeNode.setParentOffset(IntField.fromValue(byteBuffer.getInt()));
+      }
+    } else {
+      treeNode = BTreeNode.createInternalNode();
+    }
+
+    return treeNode;
   }
 }

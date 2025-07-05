@@ -63,14 +63,14 @@ public class BTreeNode<K extends Comparable<K>> {
   /**
    * Create a leaf node.
    */
-  static <K extends Comparable<K>> BTreeNode<K> createLeafNode() {
+  public static <K extends Comparable<K>> BTreeNode<K> createLeafNode() {
     return new BTreeNode<>(true);
   }
 
   /**
    * Create an internal node.
    */
-  static <K extends Comparable<K>> BTreeNode<K> createInternalNode() {
+  public static <K extends Comparable<K>> BTreeNode<K> createInternalNode() {
     return new BTreeNode<>(false);
   }
 
@@ -669,30 +669,5 @@ public class BTreeNode<K extends Comparable<K>> {
   private enum SiblingPosition {
     TO_THE_LEFT,
     TO_THE_RIGHT
-  }
-
-  @SuppressWarnings("unchecked")
-  public static <K extends Comparable<K>> BTreeNode<K> deserialize(byte[] bytes) {
-    ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
-    BTreeNode<K> treeNode;
-    char isLeafByte = byteBuffer.getChar();
-    if (isLeafByte == 1) {
-      treeNode = createLeafNode();
-      int numKey = byteBuffer.getInt();
-      // TODO: check type
-      IntStream.range(0, numKey)
-          .forEach(i -> treeNode.keys.add((SortableField<K>) SortableField.fromValue(byteBuffer.getInt())));
-      int numPointers = byteBuffer.getInt();
-      IntStream.range(0, numPointers)
-          .forEach(i -> treeNode.pointerOffsets.add(IntField.fromValue(byteBuffer.getInt())));
-      char hasParent = byteBuffer.getChar();
-      if (hasParent != 0) {
-        treeNode.parentOffset = IntField.fromValue(byteBuffer.getInt());
-      }
-    } else {
-      treeNode = createInternalNode();
-    }
-
-    return treeNode;
   }
 }

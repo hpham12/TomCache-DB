@@ -40,7 +40,7 @@ public class StorageManagerTest {
 
     byte[] fileContent = Files.readAllBytes(file.toPath());
 
-    BTreeNode<Integer> deserializedNode = BTreeNode.deserialize(fileContent);
+    BTreeNode<Integer> deserializedNode = SerializationUtil.deserialize(fileContent);
 
     assertThat(deserializedNode.getIsLeaf()).isTrue();
     assertThat(deserializedNode.getKeys()).containsExactlyElementsOf(node.getKeys());
