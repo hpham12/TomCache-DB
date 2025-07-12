@@ -1,16 +1,16 @@
-package com.hpham.database.btree_disk.dataTypes;
+package com.hpham.database.btree_disk.data_types;
 
 import lombok.Builder;
 
 import static com.hpham.database.btree_disk.constants.DataConstants.INT_SIZE_BYTES;
-import static com.hpham.database.btree_disk.constants.DataConstants.STRING_TYPE_SIGNAL;
+import static com.hpham.database.btree_disk.constants.DataConstants.STRING_SIZE_BYTES;
 
 /**
  * Class representing a string field.
  * String has maximum length of {@code Integer.MAX_VALUE}.
  * */
 @Builder
-public class StringField extends SortableField<String> {
+public final class StringField extends SortableField<String> {
   String value;
 
   /**
@@ -87,12 +87,12 @@ public class StringField extends SortableField<String> {
     return false;
   }
 
-  @Override
-  public char typeSignal() {
-    return STRING_TYPE_SIGNAL;
-  }
-
   public static StringField fromValue(String value) {
     return StringField.builder().value(value).build();
+  }
+
+  @Override
+  public int getSize() {
+    return STRING_SIZE_BYTES;
   }
 }

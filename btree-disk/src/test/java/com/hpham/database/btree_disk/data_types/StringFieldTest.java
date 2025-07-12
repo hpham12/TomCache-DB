@@ -1,4 +1,4 @@
-package com.hpham.database.btree_disk.dataTypes;
+package com.hpham.database.btree_disk.data_types;
 
 import org.junit.jupiter.api.Test;
 

@@ -1,6 +1,7 @@
 package com.hpham.database.btree_disk;
 
-import com.hpham.database.btree_disk.dataTypes.IntField;
+import com.hpham.database.btree_disk.data_types.IntField;
+import com.hpham.database.btree_disk.data_types.StringField;
 import com.hpham.database.btree_disk.exceptions.RecordAlreadyExistException;
 import com.hpham.database.btree_disk.exceptions.RecordNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +36,7 @@ public class BTreeTest {
 
   @ParameterizedTest
   @MethodSource("testRecords")
-  void testAdd(List<Record<Integer, Object>> records) {
+  void testAdd(List<Record<Integer>> records) {
     records.forEach(record -> {
       bTree.insert(record);
       assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
@@ -44,7 +45,7 @@ public class BTreeTest {
 
   @ParameterizedTest
   @MethodSource("testRecords")
-  void testTreeIntegrityWhenAdd(List<Record<Integer, Object>> testRecords) {
+  void testTreeIntegrityWhenAdd(List<Record<Integer>> testRecords) {
     testRecords.forEach(record -> {
       bTree.insert(record);
       assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
@@ -55,7 +56,7 @@ public class BTreeTest {
 
   @ParameterizedTest
   @MethodSource("testRecords")
-  void testTreeIntegrityWhenDelete(List<Record<Integer, Object>> testRecords) {
+  void testTreeIntegrityWhenDelete(List<Record<Integer>> testRecords) {
     testRecords.forEach(record -> bTree.insert(record));
 
     testRecords.forEach(record -> {
@@ -123,7 +124,7 @@ public class BTreeTest {
 
   @ParameterizedTest
   @MethodSource("testRecords")
-  void testDelete(List<Record<Integer, Object>> records) throws RecordNotFoundException {
+  void testDelete(List<Record<Integer>> records) throws RecordNotFoundException {
     records.forEach(record -> {
       bTree.insert(record);
       assertThat(bTree.findRecord(record.getKey())).isEqualTo(record);
@@ -135,7 +136,7 @@ public class BTreeTest {
     });
   }
 
-  private static Stream<List<Record<Integer, String>>> testRecords() {
+  private static Stream<List<Record<Integer>>> testRecords() {
     return Stream.of(
         generateTestRecordsWithIncrementingKeys(),
         generateTestRecordsWithDecrementingKeys(),
@@ -143,25 +144,35 @@ public class BTreeTest {
     );
   }
 
-  private static List<Record<Integer, String>> generateTestRecordsWithIncrementingKeys() {
+  private static List<Record<Integer>> generateTestRecordsWithIncrementingKeys() {
     return IntStream.range(0, NUMBER_OF_TEST_RECORDS)
-        .mapToObj(key ->(Record.<Integer, String>builder()
+        .mapToObj(key ->(Record.<Integer>builder()
             .key(IntField.builder().value(key).build())
-            .value(String.format("%s - %s", key, "testValue"))
+            .value(RecordValue.emptyRecordValue()
+                .withField(
+                    "testField",
+                    StringField.fromValue(String.format("%s - %s", key, "testValue"))
+                )
+            )
             .build()))
         .toList();
   }
 
-  private static List<Record<Integer, String>> generateTestRecordsWithDecrementingKeys() {
+  private static List<Record<Integer>> generateTestRecordsWithDecrementingKeys() {
     return IntStream.iterate(NUMBER_OF_TEST_RECORDS, i -> i >= 0, i -> i - 1)
-        .mapToObj(key ->(Record.<Integer, String>builder()
+        .mapToObj(key ->(Record.<Integer>builder()
             .key(IntField.builder().value(key).build())
-            .value(String.format("%s - %s", key, "testValue"))
+            .value(RecordValue.emptyRecordValue()
+                .withField(
+                    "testField",
+                    StringField.fromValue(String.format("%s - %s", key, "testValue"))
+                )
+            )
             .build()))
         .toList();
   }
 
-  private static List<Record<Integer, String>> generateTestRecordsWithRandomizedKeys() {
+  private static List<Record<Integer>> generateTestRecordsWithRandomizedKeys() {
     Set<Integer> keys = new HashSet<>();
     Random rand = new Random();
 
@@ -171,25 +182,47 @@ public class BTreeTest {
     }
 
     return keys.stream()
-        .map(key ->(Record.<Integer, String>builder()
+        .map(key ->(Record.<Integer>builder()
             .key(IntField.builder().value(key).build())
-            .value(String.format("%s - %s", key, "testValue"))
-            .build()))
+            .value(RecordValue.emptyRecordValue()
+                .withField(
+                    "testField",
+                    StringField.fromValue(String.format("%s - %s", key, "testValue"))
+                )
+            ).build()))
         .toList();
   }
 
   @Test
   void insertNewRecordWithExistingKey() {
-    bTree.insert(Record.<Integer, Object>builder().key(IntField.fromValue(1)).value("val-1").build());
+    bTree.insert(Record.<Integer>builder()
+        .key(IntField.fromValue(1))
+        .value(RecordValue.emptyRecordValue()
+            .withField("field-1", StringField.fromValue("val-1"))
+        )
+        .build()
+    );
     assertThrows(
         RecordAlreadyExistException.class,
-        () -> bTree.insert(Record.<Integer, Object>builder().key(IntField.fromValue(1)).value("val-2").build())
+        () -> bTree.insert(Record.<Integer>builder()
+            .key(IntField.fromValue(1))
+            .value(RecordValue.emptyRecordValue()
+                .withField("field-2", StringField.fromValue("val-2"))
+            )
+            .build()
+        )
     );
   }
 
   @Test
   void deleteRecordWithInvalidKey() {
-    bTree.insert(Record.<Integer, Object>builder().key(IntField.fromValue(1)).value("val-1").build());
+    bTree.insert(Record.<Integer>builder()
+        .key(IntField.fromValue(1))
+        .value(RecordValue.emptyRecordValue()
+            .withField("field-1", StringField.fromValue("val-1"))
+        )
+        .build()
+    );
     assertThrows(
         RecordNotFoundException.class,
         () -> bTree.delete(IntField.fromValue(2))
@@ -198,20 +231,40 @@ public class BTreeTest {
 
   @Test
   void updateRecordWithExistingKey() {
-    bTree.insert(Record.<Integer, Object>builder().key(IntField.fromValue(1)).value("val-1").build());
+    bTree.insert(Record.<Integer>builder()
+        .key(IntField.fromValue(1))
+        .value(RecordValue.emptyRecordValue()
+            .withField("field-1", StringField.fromValue("val-1"))
+        )
+        .build()
+    );
     assertThat(
-        bTree.update(Record.<Integer, Object>builder().key(IntField.fromValue(1)).value("val-2").build())
+        bTree.update(Record.<Integer>builder()
+            .key(IntField.fromValue(1))
+            .value(RecordValue.emptyRecordValue()
+                .withField("field-2", StringField.fromValue("val-2"))
+            )
+            .build()
+        )
     ).satisfies(record -> {
       assertThat(record.getKey()).isEqualTo(IntField.fromValue(1));
-      assertThat(record.getValue()).isEqualTo("val-2");
+      assertThat(record.getValue().getField("field-2"))
+          .isEqualTo(StringField.fromValue("val-2"));
     });
 
-    assertThat(bTree.findRecord(IntField.fromValue(1)).getValue()).isEqualTo("val-2");
+    assertThat(bTree.findRecord(IntField.fromValue(1))
+        .getValue().getField("field-2"))
+        .isEqualTo(StringField.fromValue("val-2"));
   }
 
   @Test
   void updateInvalidRecord() {
-    bTree.insert(Record.<Integer, Object>builder().key(IntField.fromValue(1)).value("val-1").build());
+    bTree.insert(Record.<Integer>builder()
+        .key(IntField.fromValue(1))
+        .value(RecordValue.emptyRecordValue()
+            .withField("field-1", StringField.fromValue("val-1"))
+        )
+        .build());
     assertThrows(
         RecordNotFoundException.class,
         () -> bTree.delete(IntField.fromValue(2))

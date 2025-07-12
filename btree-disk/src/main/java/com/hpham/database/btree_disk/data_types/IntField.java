@@ -1,12 +1,11 @@
-package com.hpham.database.btree_disk.dataTypes;
+package com.hpham.database.btree_disk.data_types;
 
 import lombok.Builder;
 
 import static com.hpham.database.btree_disk.constants.DataConstants.INT_SIZE_BYTES;
-import static com.hpham.database.btree_disk.constants.DataConstants.INT_TYPE_SIGNAL;
 
 @Builder
-public class IntField extends SortableField<Integer> {
+public final class IntField extends SortableField<Integer> {
   private Integer value;
   @Override
   public byte[] serialize() {
@@ -49,12 +48,12 @@ public class IntField extends SortableField<Integer> {
     return false;
   }
 
-  @Override
-  public char typeSignal() {
-    return INT_TYPE_SIGNAL;
-  }
-
   public static IntField fromValue(Integer value) {
     return IntField.builder().value(value).build();
+  }
+
+  @Override
+  public int getSize() {
+    return INT_SIZE_BYTES;
   }
 }

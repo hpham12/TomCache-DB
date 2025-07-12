@@ -1,6 +1,6 @@
 package com.hpham.database.btree_disk;
 
-import com.hpham.database.btree_disk.dataTypes.SortableField;
+import com.hpham.database.btree_disk.data_types.SortableField;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,12 +14,16 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @Builder
-public class Record<K extends Comparable<K>, V> implements Comparable<Record<K, V>> {
+public class Record<K extends Comparable<K>> implements Comparable<Record<K>> {
   private @NonNull SortableField<K> key;
-  private @NonNull V value;
+  private @NonNull RecordValue value;
 
   @Override
-  public int compareTo(Record<K, V> r) {
+  public int compareTo(Record<K> r) {
     return key.compareTo(r.key);
+  }
+
+  public int getSize() {
+    return key.getSize() + value.getSize();
   }
 }

@@ -1,15 +1,15 @@
 package com.hpham.database.btree_disk.util;
 
 import com.hpham.database.btree_disk.BTreeNode;
-import com.hpham.database.btree_disk.dataTypes.Field;
-import com.hpham.database.btree_disk.dataTypes.IntField;
-import com.hpham.database.btree_disk.dataTypes.SortableField;
-import com.hpham.database.btree_disk.dataTypes.StringField;
+import com.hpham.database.btree_disk.Record;
+import com.hpham.database.btree_disk.data_types.Field;
+import com.hpham.database.btree_disk.data_types.IntField;
+import com.hpham.database.btree_disk.data_types.LongField;
+import com.hpham.database.btree_disk.data_types.SortableField;
+import com.hpham.database.btree_disk.data_types.StringField;
 
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.hpham.database.btree_disk.BTree.FANOUT;
@@ -20,7 +20,6 @@ import static com.hpham.database.btree_disk.constants.DataConstants.PAGE_SIZE_BY
 import static com.hpham.database.btree_disk.constants.DataConstants.POINTER_SIZE_BYTES;
 import static com.hpham.database.btree_disk.constants.DataConstants.STRING_SIZE_BYTES;
 import static com.hpham.database.btree_disk.constants.DataConstants.STRING_TYPE_SIGNAL;
-import static com.hpham.database.btree_disk.constants.DataConstants.TYPE_SIGNAL_SIZE_BYTES;
 
 public class SerializationUtil {
   /**
@@ -29,7 +28,6 @@ public class SerializationUtil {
   private static final Map<String, Integer> leafNodeSizes = Map.of(
       "isLeaf", BOOL_SIZE_BYTES,
       "numKeys", INT_SIZE_BYTES,
-      "keyTypeSignal", (int) TYPE_SIGNAL_SIZE_BYTES,
       "keys", 0,  //to be overridden
       "hasParent", BOOL_SIZE_BYTES,
       "parentOffset", POINTER_SIZE_BYTES,
@@ -43,7 +41,6 @@ public class SerializationUtil {
   private static final Map<String, Integer> internalNodeSizes = Map.of(
       "isLeaf", BOOL_SIZE_BYTES,
       "numKeys", INT_SIZE_BYTES,
-      "keyTypeSignal", (int) TYPE_SIGNAL_SIZE_BYTES,
       "keys", 0,  //to be overridden
       "hasParent", BOOL_SIZE_BYTES,
       "parentOffset", POINTER_SIZE_BYTES,
@@ -53,13 +50,12 @@ public class SerializationUtil {
 
   public static <K extends Comparable<K>> ByteBuffer serialize(BTreeNode<K> node) {
     ByteBuffer byteBuffer = ByteBuffer.allocateDirect(PAGE_SIZE_BYTES);
-    byteBuffer.mark();
 
     byteBuffer.putChar((char) (node.getIsLeaf() ? 1 : 0));
 
     if (node.getParent() == null) {
       byteBuffer.putChar((char) 0);
-      byteBuffer.putInt(0);
+      byteBuffer.putLong(0);
     } else {
       byteBuffer.putChar((char) 1);
       byteBuffer.put(node.getParentOffset().serialize());
@@ -70,8 +66,9 @@ public class SerializationUtil {
       byteBuffer.putInt(node.getRecordOffsets().size());
       node.getRecordOffsets().forEach(recordOffset -> byteBuffer.put(recordOffset.serialize()));
 
+      // add padding to make the size constant
       for (int i = node.getRecordOffsets().size(); i < FANOUT; i++) {
-        byteBuffer.putInt(0);
+        byteBuffer.putLong(0);
       }
     } else {
       // pointers
@@ -80,24 +77,27 @@ public class SerializationUtil {
 
       // add padding to make the size constant
       for (int i = node.getPointerOffsets().size(); i < FANOUT; i++) {
-        byteBuffer.putInt(0);
+        byteBuffer.putLong(0);
       }
     }
 
     byteBuffer.putInt(node.getKeys().size());
 
-    char typeSignal = node.getKeys().getFirst().typeSignal();
-    byteBuffer.putChar(typeSignal);
-
     node.getKeys().forEach(key -> byteBuffer.put(key.serialize()));
+    while (byteBuffer.position() < PAGE_SIZE_BYTES) {
+      byteBuffer.put((byte) 0);
+    }
 
-    byteBuffer.reset();
+    byteBuffer.position(PAGE_SIZE_BYTES);
+    byteBuffer.flip();
     return byteBuffer;
   }
 
   @SuppressWarnings("unchecked")
-  public static <K extends Comparable<K>> BTreeNode<K> deserialize(byte[] bytes) {
-    ByteBuffer byteBuffer = ByteBuffer.wrap(bytes);
+  public static <K extends Comparable<K>> BTreeNode<K> deserializeBTreeNode(
+      ByteBuffer byteBuffer,
+      int typeSignal
+  ) {
     BTreeNode<K> treeNode;
     char isLeafByte = byteBuffer.getChar();
     if (isLeafByte == 1) {
@@ -108,24 +108,24 @@ public class SerializationUtil {
 
     char hasParent = byteBuffer.getChar();
 
-    int parentOffset = byteBuffer.getInt();
+    long parentOffset = byteBuffer.getLong();
     if (hasParent != 0) {
-      treeNode.setParentOffset(IntField.fromValue(parentOffset));
+      treeNode.setParentOffset(LongField.fromValue(parentOffset));
     }
 
     int numRecords = byteBuffer.getInt();
     IntStream.range(0, numRecords)
-        .forEach(i -> treeNode.getRecordOffsets().add(IntField.fromValue(byteBuffer.getInt())));
+        .forEach(i -> treeNode.getRecordOffsets().add(LongField.fromValue(byteBuffer.getLong())));
 
+    // skip the padding
     for (int i = numRecords; i < FANOUT; i++) {
-      byteBuffer.getInt();
+      byteBuffer.getLong();
     }
 
     int numKey = byteBuffer.getInt();
 
     // TODO: expand type support
     if (numKey > 0) {
-      int typeSignal = byteBuffer.getChar();
       switch (typeSignal) {
         case INT_TYPE_SIGNAL -> IntStream.range(0, numKey)
             .forEach(i -> treeNode.getKeys().add(
@@ -144,5 +144,23 @@ public class SerializationUtil {
     }
 
     return treeNode;
+  }
+
+  /**
+   * Serialize a record. A serialized record has the following format:
+   * <code>
+   *    [key][fieldValue][fieldValue][...]
+   * </code>
+   * */
+  public static <K extends Comparable<K>> ByteBuffer serialize(Record<K> record) {
+    int recordSize = record.getSize();
+    ByteBuffer byteBuffer = ByteBuffer.allocateDirect(recordSize);
+
+    byteBuffer.put(record.getKey().serialize());
+    record.getValue().serializeFields()
+        .forEach(byteBuffer::put);
+
+    byteBuffer.flip();
+    return byteBuffer;
   }
 }
