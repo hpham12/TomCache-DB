@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
+import static com.hpham.database.btree_disk.constants.DataConstants.INT_SIZE_BYTES;
+import static com.hpham.database.btree_disk.constants.DataConstants.LONG_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -20,31 +22,19 @@ public class StringFieldTest {
     assertThat(deserialized).isEqualTo(testString);
   }
 
-//  @Test
-//  void testSerializationWithNonZeroStart() {
-//    String testString = "HelloWorld";
-//    StringField field = StringField.fromValue(testString);
-//    ByteBuffer serialized = field.serialize();
-//    byte[] bytes = new byte[20 + serialized.length];
-//    int currentIndex = 0;
-//
-//    for (int i = 0; i < 10; i++) {
-//      bytes[currentIndex] = (byte) ('a' + i);
-//      currentIndex++;
-//    }
-//
-//    for (byte b : serialized) {
-//      bytes[currentIndex] = b;
-//      currentIndex++;
-//    }
-//
-//    for (int i = 0; i < 10; i++) {
-//      bytes[currentIndex] = (byte) ('a' + i);
-//      currentIndex++;
-//    }
-//
-//    String deserialized = StringField.deserialize(bytes, 10);
-//
-//    assertThat(deserialized).isEqualTo(testString);
-//  }
+  @Test
+  void testSerializationWithNonZeroStart() {
+    String testString = "HelloWorld";
+    StringField field = StringField.fromValue(testString);
+    ByteBuffer serialized = field.serialize();
+
+    ByteBuffer buffer = ByteBuffer.allocateDirect(100);
+    buffer.putInt(2);
+    buffer.putLong(2132L);
+    buffer.put(serialized);
+
+    String deserialized = StringField.deserialize(buffer, INT_SIZE_BYTES + LONG_SIZE_BYTES);
+
+    assertThat(deserialized).isEqualTo(testString);
+  }
 }
