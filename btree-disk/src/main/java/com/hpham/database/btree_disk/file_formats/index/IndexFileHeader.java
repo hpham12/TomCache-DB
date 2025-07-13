@@ -11,11 +11,12 @@ public class IndexFileHeader implements Serializable {
   private Long rootOffset;
 
   @Override
-  public byte[] serialize() {
+  public ByteBuffer serialize() {
     ByteBuffer bb = ByteBuffer.allocate(9);
     bb.putChar(keyType);
     bb.putLong(rootOffset);
+    bb.flip();
 
-    return bb.array();
+    return bb;
   }
 }

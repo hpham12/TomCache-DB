@@ -10,10 +10,10 @@ public class RecordFileHeader implements Serializable {
   private Integer recordSize;
 
   @Override
-  public byte[] serialize() {
+  public ByteBuffer serialize() {
     ByteBuffer bb = ByteBuffer.allocate(4);
     bb.putInt(recordSize);
-
-    return bb.array();
+    bb.flip();
+    return bb;
   }
 }

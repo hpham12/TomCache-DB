@@ -4,6 +4,7 @@ import com.hpham.database.btree_disk.data_types.Field;
 import com.hpham.database.btree_disk.data_types.IntField;
 import com.hpham.database.btree_disk.data_types.StringField;
 
+import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +46,7 @@ public class RecordValue {
         .orElse(0);
   }
 
-  public List<byte[]> serializeFields() {
+  public List<ByteBuffer> serializeFields() {
     return fields.values()
         .stream()
         .map(Field::serialize)

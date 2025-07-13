@@ -2,31 +2,25 @@ package com.hpham.database.btree_disk.data_types;
 
 import lombok.Builder;
 
+import java.nio.ByteBuffer;
+
 import static com.hpham.database.btree_disk.constants.DataConstants.INT_SIZE_BYTES;
 
 @Builder
 public final class IntField extends SortableField<Integer> {
   private Integer value;
-  @Override
-  public byte[] serialize() {
-    byte[] bytes = new byte[INT_SIZE_BYTES];
-    for (int i = INT_SIZE_BYTES - 1; i >= 0; i--) {
-      bytes[INT_SIZE_BYTES - 1 - i] = (byte) ((value >> (i * 8)));
-    }
 
-    return bytes;
+  @Override
+  public ByteBuffer serialize() {
+    ByteBuffer bb = ByteBuffer.allocateDirect(INT_SIZE_BYTES);
+    bb.putInt(value);
+    bb.flip();
+
+    return bb;
   }
 
-  public static Integer deserialize(byte[] bytes, int start) {
-    int num = 0;
-    for (int i = 0; i < INT_SIZE_BYTES; i++) {
-      num = num | (bytes[start + i]);
-      if (i < INT_SIZE_BYTES - 1) {
-        num = num << 8;
-      }
-    }
-
-    return num;
+  public static Integer deserialize(ByteBuffer bb, int start) {
+    return bb.getInt(start);
   }
 
   @Override

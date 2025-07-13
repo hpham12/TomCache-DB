@@ -2,6 +2,8 @@ package com.hpham.database.btree_disk.data_types;
 
 import lombok.Builder;
 
+import java.nio.ByteBuffer;
+
 import static com.hpham.database.btree_disk.constants.DataConstants.INT_SIZE_BYTES;
 import static com.hpham.database.btree_disk.constants.DataConstants.STRING_SIZE_BYTES;
 
@@ -24,7 +26,7 @@ public final class StringField extends SortableField<String> {
    * Padding is added to make sure size is {@code STRING_SIZE_BYTES}
    * */
   @Override
-  public byte[] serialize() {
+  public ByteBuffer serialize() {
     int stringLength = value.length();
     assert stringLength < 46;
 
@@ -40,30 +42,25 @@ public final class StringField extends SortableField<String> {
       currentByteIndex++;
     }
 
-    return bytes;
+    return ByteBuffer.wrap(bytes);
   }
 
   /**
    * Static method to deserialize a sequence of bytes to {@code String}.
    *
-   * @param bytes underlying bytes to deserialize.
+   * @param bb underlying bytes to deserialize.
    * @param start position the underlying byte array to start the deserialization.
    * */
-  public static String deserialize(byte[] bytes, int start) {
-    int stringLength = 0;
-    for (int i = 0; i < INT_SIZE_BYTES; i++) {
-      stringLength = stringLength | (bytes[start + i]);
-      if (i < INT_SIZE_BYTES - 1) {
-        stringLength = stringLength << 8;
-      }
-    }
-
-    int stringContentStart = start + INT_SIZE_BYTES;
+  public static String deserialize(ByteBuffer bb, int start) {
+    int stringLength = bb.getInt(start);
 
     StringBuilder sb = new StringBuilder();
+    bb.position(start + INT_SIZE_BYTES);
     for (int i = 0; i < stringLength; i++) {
-      sb.append((char) bytes[stringContentStart + i]);
+      sb.append((char) bb.get());
     }
+
+    bb.position(start + STRING_SIZE_BYTES);
 
     return sb.toString();
   }

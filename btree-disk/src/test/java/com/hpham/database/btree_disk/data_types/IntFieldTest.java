@@ -2,6 +2,8 @@ package com.hpham.database.btree_disk.data_types;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -12,7 +14,7 @@ public class IntFieldTest {
   void testSerialization() {
     IntField field = IntField.fromValue(2842);
 
-    byte[] serialized = field.serialize();
+    ByteBuffer serialized = field.serialize();
 
     assertThat(IntField.deserialize(serialized, 0)).isEqualTo(2842);
   }

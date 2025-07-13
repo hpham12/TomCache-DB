@@ -134,10 +134,8 @@ public class SerializationUtil {
 
         case STRING_TYPE_SIGNAL -> IntStream.range(0, numKey)
             .forEach(i -> {
-                  byte[] stringBytes = new byte[STRING_SIZE_BYTES];
-                  byteBuffer.get(stringBytes);
                   treeNode.getKeys().add(
-                      (SortableField<K>) Field.fromValue(StringField.deserialize(stringBytes, 0)));
+                      (SortableField<K>) Field.fromValue(StringField.deserialize(byteBuffer, byteBuffer.position())));
                 }
             );
       }
