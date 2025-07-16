@@ -13,7 +13,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static com.hpham.database.btree_disk.constants.DataConstants.PAGE_SIZE_BYTES;
-import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -75,7 +74,7 @@ public class IndexFile {
     byteChannel.close();
   }
 
-  public void delete() throws IOException {
+  public void deleteAll() throws IOException {
     close();
     file.delete();
   }

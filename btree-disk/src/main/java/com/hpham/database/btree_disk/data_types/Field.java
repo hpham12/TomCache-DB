@@ -15,5 +15,7 @@ public abstract class Field<T> implements Serializable {
 
   abstract T getValue();
 
-  public abstract int getSize();
+  public abstract Integer getSize();
+
+  public abstract Character getTypeSignal();
 }

@@ -5,6 +5,7 @@ import lombok.Builder;
 import java.nio.ByteBuffer;
 
 import static com.hpham.database.btree_disk.constants.DataConstants.INT_SIZE_BYTES;
+import static com.hpham.database.btree_disk.constants.DataConstants.INT_TYPE_SIGNAL;
 
 @Builder
 public final class IntField extends SortableField<Integer> {
@@ -47,7 +48,12 @@ public final class IntField extends SortableField<Integer> {
   }
 
   @Override
-  public int getSize() {
+  public Integer getSize() {
     return INT_SIZE_BYTES;
+  }
+
+  @Override
+  public Character getTypeSignal() {
+    return INT_TYPE_SIGNAL;
   }
 }

@@ -51,13 +51,13 @@ public class SerializationUtil {
   public static <K extends Comparable<K>> ByteBuffer serialize(BTreeNode<K> node) {
     ByteBuffer byteBuffer = ByteBuffer.allocateDirect(PAGE_SIZE_BYTES);
 
-    byteBuffer.putChar((char) (node.getIsLeaf() ? 1 : 0));
+    byteBuffer.put((byte) (node.getIsLeaf() ? 1 : 0));
 
     if (node.getParent() == null) {
-      byteBuffer.putChar((char) 0);
+      byteBuffer.put((byte) 0x01);
       byteBuffer.putLong(0);
     } else {
-      byteBuffer.putChar((char) 1);
+      byteBuffer.put((byte) 0x00);
       byteBuffer.put(node.getParentOffset().serialize());
     }
 
@@ -96,20 +96,20 @@ public class SerializationUtil {
   @SuppressWarnings("unchecked")
   public static <K extends Comparable<K>> BTreeNode<K> deserializeBTreeNode(
       ByteBuffer byteBuffer,
-      int typeSignal
+      byte typeSignal
   ) {
     BTreeNode<K> treeNode;
-    char isLeafByte = byteBuffer.getChar();
-    if (isLeafByte == 1) {
+    byte isLeafByte = byteBuffer.get();
+    if (isLeafByte == 0x01) {
       treeNode = BTreeNode.createLeafNode();
     } else {
       treeNode = BTreeNode.createInternalNode();
     }
 
-    char hasParent = byteBuffer.getChar();
+    byte hasParent = byteBuffer.get();
 
     long parentOffset = byteBuffer.getLong();
-    if (hasParent != 0) {
+    if (hasParent != 0x00) {
       treeNode.setParentOffset(LongField.fromValue(parentOffset));
     }
 
@@ -142,23 +142,5 @@ public class SerializationUtil {
     }
 
     return treeNode;
-  }
-
-  /**
-   * Serialize a record. A serialized record has the following format:
-   * <code>
-   *    [key][fieldValue][fieldValue][...]
-   * </code>
-   * */
-  public static <K extends Comparable<K>> ByteBuffer serialize(Record<K> record) {
-    int recordSize = record.getSize();
-    ByteBuffer byteBuffer = ByteBuffer.allocateDirect(recordSize);
-
-    byteBuffer.put(record.getKey().serialize());
-    record.getValue().serializeFields()
-        .forEach(byteBuffer::put);
-
-    byteBuffer.flip();
-    return byteBuffer;
   }
 }

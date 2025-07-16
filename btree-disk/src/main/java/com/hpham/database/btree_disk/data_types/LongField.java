@@ -4,7 +4,9 @@ import lombok.Builder;
 
 import java.nio.ByteBuffer;
 
+import static com.hpham.database.btree_disk.constants.DataConstants.INT_TYPE_SIGNAL;
 import static com.hpham.database.btree_disk.constants.DataConstants.LONG_SIZE_BYTES;
+import static com.hpham.database.btree_disk.constants.DataConstants.LONG_TYPE_SIGNAL;
 
 @Builder
 public final class LongField extends SortableField<Long> {
@@ -47,7 +49,12 @@ public final class LongField extends SortableField<Long> {
   }
 
   @Override
-  public int getSize() {
+  public Integer getSize() {
     return LONG_SIZE_BYTES;
+  }
+
+  @Override
+  public Character getTypeSignal() {
+    return LONG_TYPE_SIGNAL;
   }
 }

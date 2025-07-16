@@ -1,11 +1,10 @@
 package com.hpham.database.btree_disk.file_formats.record;
 
 import com.hpham.database.btree_disk.data_types.Serializable;
-import lombok.Data;
-
+import lombok.Builder;
 import java.nio.ByteBuffer;
 
-@Data
+@Builder
 public class RecordFileHeader implements Serializable {
   private Integer recordSize;
 
