@@ -4,14 +4,13 @@ import com.hpham.database.btree_disk.Record;
 import com.hpham.database.btree_disk.RecordValue;
 import com.hpham.database.btree_disk.data_types.Field;
 import com.hpham.database.btree_disk.data_types.IntField;
-import com.hpham.database.btree_disk.data_types.Serializable;
-import com.hpham.database.btree_disk.data_types.SortableField;
 import com.hpham.database.btree_disk.data_types.StringField;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Random;
@@ -105,5 +104,41 @@ public class RecordFileTest {
     updatedFields.forEach((fieldName, fieldValue) -> {
       assertThat(updatedRecord.getValue().getField(fieldName)).isEqualTo(fieldValue);
     });
+  }
+
+  @Test
+  void testDelete() throws IOException {
+    Map<String, Field<?>> fields = new LinkedHashMap<>();
+    fields.put("field1", StringField.fromValue("value1"));
+    fields.put("field2", IntField.fromValue(4));
+    fields.put("field3", StringField.fromValue("value3"));
+    fields.put("field4", IntField.fromValue(4));
+    recordFile.openFile(String.format("record-%d.tc", rand.nextInt()));
+    IntStream.range(0, 10).forEach(
+        i -> {
+          var key = IntField.fromValue(rand.nextInt());
+          Record<Integer> record = Record.<Integer>builder()
+              .key(key)
+              .value(RecordValue.recordValueWithFields(fields))
+              .build();
+          try {
+            recordFile.append(record.serialize());
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        }
+    );
+
+    long recordOffsetToDelete = 4L;
+    recordFile.delete(recordOffsetToDelete);
+
+    ByteBuffer bb = recordFile.read(recordOffsetToDelete);
+
+    byte[] bytes = new byte[recordFile.getRecordSize()];
+    bb.get(bytes);
+
+    for (byte b : bytes) {
+      assertThat(b).isEqualTo((byte) 0);
+    }
   }
 }

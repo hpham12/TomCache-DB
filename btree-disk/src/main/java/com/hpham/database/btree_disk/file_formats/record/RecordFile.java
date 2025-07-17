@@ -1,5 +1,7 @@
 package com.hpham.database.btree_disk.file_formats.record;
 
+import lombok.Getter;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -21,6 +23,7 @@ public class RecordFile {
   private SeekableByteChannel byteChannel;
   private Boolean isDirty = Boolean.FALSE;
   private Long recordStart;
+  @Getter
   private Integer recordSize;
 
   public void openFile(String fileName) throws IOException {
@@ -83,6 +86,14 @@ public class RecordFile {
     return actualPosition;
   }
 
+  public Long delete(long offset) throws IOException {
+    long actualPosition = offset * recordSize + recordStart;
+    byteChannel.position(actualPosition);
+    byteChannel.write(ByteBuffer.wrap(new byte[recordSize]));
+
+    return actualPosition;
+  }
+
   public void close() throws IOException {
     byteChannel.close();
   }
@@ -91,4 +102,5 @@ public class RecordFile {
     close();
     file.delete();
   }
+
 }

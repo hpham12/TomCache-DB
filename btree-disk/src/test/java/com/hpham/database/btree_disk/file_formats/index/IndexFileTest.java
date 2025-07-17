@@ -1,8 +1,10 @@
 package com.hpham.database.btree_disk.file_formats.index;
 
 import static com.hpham.database.btree_disk.constants.DataConstants.INT_TYPE_SIGNAL;
+import static com.hpham.database.btree_disk.constants.DataConstants.PAGE_SIZE_BYTES;
 import static com.hpham.database.btree_disk.constants.DataConstants.STRING_TYPE_SIGNAL;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.offset;
 
 import com.hpham.database.btree_disk.BTreeNode;
 import com.hpham.database.btree_disk.data_types.IntField;
@@ -12,12 +14,14 @@ import com.hpham.database.btree_disk.data_types.StringField;
 import com.hpham.database.btree_disk.util.SerializationUtil;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
 
 public class IndexFileTest {
   private IndexFile indexFile;
@@ -169,5 +173,48 @@ public class IndexFileTest {
     assertThat(deserializedUpdatedNode.getKeys()).containsExactlyElementsOf(updatedKeys);
     assertThat(deserializedUpdatedNode.getRecordOffsets())
         .containsExactlyElementsOf(updatedRecordOffsets);
+  }
+
+  @Test
+  void testDelete() throws IOException {
+    indexFile.openFile(String.format("index-%d.tc", rand.nextInt()));
+    IntStream.range(0, 5).forEach(
+        i -> {
+          BTreeNode<Integer> node = BTreeNode.createLeafNode();
+          node.setKeys(
+              List.of(
+                  IntField.fromValue(rand.nextInt()),
+                  IntField.fromValue(rand.nextInt()),
+                  IntField.fromValue(rand.nextInt())
+              )
+          );
+          node.setRecordOffsets(
+              List.of(
+                  LongField.fromValue(rand.nextLong()),
+                  LongField.fromValue(rand.nextLong()),
+                  LongField.fromValue(rand.nextLong())
+              )
+          );
+          ByteBuffer byteBuffer = SerializationUtil.serialize(node);
+          try {
+            indexFile.append(byteBuffer);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        }
+    );
+
+    long offsetToDelete = 2L;
+
+    indexFile.delete(offsetToDelete);
+
+    ByteBuffer bb = indexFile.read(offsetToDelete);
+
+    byte[] bytes = new byte[PAGE_SIZE_BYTES];
+    bb.get(bytes);
+
+    for (byte b : bytes) {
+      assertThat(b).isEqualTo((byte) 0);
+    }
   }
 }

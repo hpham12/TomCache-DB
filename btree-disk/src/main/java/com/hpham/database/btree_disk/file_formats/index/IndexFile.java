@@ -70,6 +70,15 @@ public class IndexFile {
     return actualPosition;
   }
 
+  // TODO: Save empty slots in header/metadata file
+  public Long delete(long offset) throws IOException {
+    long actualPosition = offset * PAGE_SIZE_BYTES;
+    byteChannel.position(actualPosition);
+    byteChannel.write(ByteBuffer.wrap(new byte[PAGE_SIZE_BYTES]));
+
+    return actualPosition;
+  }
+
   public void close() throws IOException {
     byteChannel.close();
   }
