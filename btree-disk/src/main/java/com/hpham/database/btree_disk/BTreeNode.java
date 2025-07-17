@@ -1,8 +1,9 @@
 package com.hpham.database.btree_disk;
 
 import com.hpham.database.btree_disk.annotations.ForSerialization;
-import com.hpham.database.btree_disk.dataTypes.IntField;
-import com.hpham.database.btree_disk.dataTypes.SortableField;
+import com.hpham.database.btree_disk.data_types.IntField;
+import com.hpham.database.btree_disk.data_types.LongField;
+import com.hpham.database.btree_disk.data_types.SortableField;
 import com.hpham.database.btree_disk.exceptions.InvalidMethodInvocationException;
 import com.hpham.database.btree_disk.exceptions.RecordAlreadyExistException;
 import com.hpham.database.btree_disk.exceptions.RecordNotFoundException;
@@ -11,15 +12,11 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 import static com.hpham.database.btree_disk.BTree.FANOUT;
 
@@ -37,14 +34,14 @@ public class BTreeNode<K extends Comparable<K>> {
   @ForSerialization
   private List<SortableField<K>> keys;
   @ForSerialization
-  private List<IntField> pointerOffsets;
+  private List<LongField> pointerOffsets;
   @ForSerialization
-  private List<IntField> recordOffsets;
+  private List<LongField> recordOffsets;
   @ForSerialization
-  IntField parentOffset;
+  LongField parentOffset;
 
   private List<BTreeNode<K>> pointers;
-  private List<Record<K, Object>> records;
+  private List<Record<K>> records;
   private BTreeNode<K> parent;
 
 
@@ -79,12 +76,12 @@ public class BTreeNode<K extends Comparable<K>> {
    *
    * @throws InvalidMethodInvocationException if the record key is not found
    */
-  Record<K, Object> updateRecord(@NonNull Record<K, Object> newRecord) {
+  Record<K> updateRecord(@NonNull Record<K> newRecord) {
     if (!this.isLeaf) {
       throw new InvalidMethodInvocationException("Cannot update record in an internal node");
     }
 
-    Optional<Record<K, Object>> existingRecordOptional = this.records.stream()
+    Optional<Record<K>> existingRecordOptional = this.records.stream()
         .filter(record -> record.getKey().equals(newRecord.getKey()))
         .findAny();
 
@@ -105,7 +102,7 @@ public class BTreeNode<K extends Comparable<K>> {
    * @return New root of the B-Tree, {@code null} if the root does not change
    * @throws InvalidMethodInvocationException if this is not a leaf node
    */
-  Optional<BTreeNode<K>> addNewRecord(@NonNull Record<K, Object> newRecord) {
+  Optional<BTreeNode<K>> addNewRecord(@NonNull Record<K> newRecord) {
     if (!this.isLeaf) {
       throw new InvalidMethodInvocationException("Cannot add new record to an internal node");
     }
@@ -137,10 +134,10 @@ public class BTreeNode<K extends Comparable<K>> {
    */
   private Optional<BTreeNode<K>> splitLeafNode(
       @NonNull BTreeNode<K> nodeToSplit,
-      @NonNull Record<K, Object> newRecord
+      @NonNull Record<K> newRecord
   ) {
     final BTreeNode<K> newLeafNode = createLeafNode();
-    List<Record<K, Object>> combinedRecords = nodeToSplit.records;
+    List<Record<K>> combinedRecords = nodeToSplit.records;
     nodeToSplit.records = new ArrayList<>();
     nodeToSplit.keys = new ArrayList<>();
     combinedRecords.add(newRecord);
@@ -148,7 +145,7 @@ public class BTreeNode<K extends Comparable<K>> {
 
     // split records into 2 halves
     for (int i = 0; i <= FANOUT; i++) {
-      Record<K, Object> currentRecord = combinedRecords.get(i);
+      Record<K> currentRecord = combinedRecords.get(i);
       if (i < FANOUT / 2) {
         nodeToSplit.keys.add(currentRecord.getKey());
         nodeToSplit.records.add(currentRecord);
@@ -290,7 +287,7 @@ public class BTreeNode<K extends Comparable<K>> {
       throw new InvalidMethodInvocationException("Cannot call deleteRecord on an internal node");
     }
 
-    Record<K, Object> recordToDelete = records
+    Record<K> recordToDelete = records
         .stream()
         .filter(r -> r.getKey().equals(key))
         .findAny()
@@ -335,7 +332,7 @@ public class BTreeNode<K extends Comparable<K>> {
         nodeToRebalanceWith
     );
     int parentKeyIndexToChange;
-    Record<K, Object> recordToMove;
+    Record<K> recordToMove;
 
     if (SiblingPosition.TO_THE_LEFT.equals(positionOfNodeToRebalance)) {
       parentKeyIndexToChange = underflowNode.parent.pointers.indexOf(nodeToRebalanceWith);

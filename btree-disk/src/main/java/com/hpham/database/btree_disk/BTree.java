@@ -2,7 +2,7 @@ package com.hpham.database.btree_disk;
 
 import java.util.Optional;
 
-import com.hpham.database.btree_disk.dataTypes.SortableField;
+import com.hpham.database.btree_disk.data_types.SortableField;
 import com.hpham.database.btree_disk.util.SearchUtil;
 import lombok.Getter;
 import lombok.NonNull;
@@ -30,7 +30,7 @@ public class BTree<K extends Comparable<K>> {
    * @param record Record to be added
    * @return added record
    */
-  public Record<K, Object> insert(@NonNull Record<K, Object> record) {
+  public Record<K> insert(@NonNull Record<K> record) {
     SortableField<K> key = record.getKey();
     BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
@@ -47,7 +47,7 @@ public class BTree<K extends Comparable<K>> {
    * @param record new record to update
    * @return updated record
    */
-  public Record<K, Object> update(@NonNull Record<K, Object> record) {
+  public Record<K> update(@NonNull Record<K> record) {
     SortableField<K> key = record.getKey();
     BTreeNode<K> targetLeafNode = findTargetLeafNode(key);
 
@@ -82,7 +82,7 @@ public class BTree<K extends Comparable<K>> {
    *
    * @param key the search key
    * */
-  public Record<K, Object> findRecord(SortableField<K> key) {
+  public Record<K> findRecord(SortableField<K> key) {
     if (this.root == null) {
       return null;
     }

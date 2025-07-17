@@ -1,6 +1,6 @@
-package com.hpham.database.btree_disk.dataTypes;
+package com.hpham.database.btree_disk.data_types;
 
-public abstract class Field<T> implements Serializable<T> {
+public abstract class Field<T> implements Serializable {
   @SuppressWarnings("unchecked")
   public static <T> Field<T> fromValue(T value) {
     if (value instanceof Integer) {
@@ -14,4 +14,8 @@ public abstract class Field<T> implements Serializable<T> {
   }
 
   abstract T getValue();
+
+  public abstract Integer getSize();
+
+  public abstract Character getTypeSignal();
 }
