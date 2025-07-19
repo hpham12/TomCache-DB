@@ -2,6 +2,7 @@ package com.hpham.database.btree_disk;
 
 import com.hpham.database.btree_disk.annotations.ForSerialization;
 import com.hpham.database.btree_disk.data_types.Field;
+import com.hpham.database.btree_disk.data_types.IntField;
 import com.hpham.database.btree_disk.data_types.LongField;
 import com.hpham.database.btree_disk.data_types.Serializable;
 import com.hpham.database.btree_disk.data_types.SortableField;
@@ -9,11 +10,14 @@ import com.hpham.database.btree_disk.data_types.StringField;
 import com.hpham.database.btree_disk.exceptions.InvalidMethodInvocationException;
 import com.hpham.database.btree_disk.exceptions.RecordAlreadyExistException;
 import com.hpham.database.btree_disk.exceptions.RecordNotFoundException;
+import com.hpham.database.btree_disk.file_formats.index.IndexFile;
+import com.hpham.database.btree_disk.file_formats.record.RecordFile;
 import com.hpham.database.btree_disk.util.SearchUtil;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,6 +50,9 @@ public class BTreeNode<K extends Comparable<K>> implements Serializable {
   private List<LongField> recordOffsets;
   @ForSerialization
   LongField parentOffset;
+
+  IndexFile indexFile;
+  RecordFile recordFile;
 
   private List<BTreeNode<K>> pointers;
   private List<Record<K>> records;
@@ -332,10 +339,10 @@ public class BTreeNode<K extends Comparable<K>> implements Serializable {
 
   @SuppressWarnings("unchecked")
   public static <K extends Comparable<K>> BTreeNode<K> deserialize(
-      ByteBuffer byteBuffer,
-      byte typeSignal
+      ByteBuffer byteBuffer
   ) {
     BTreeNode<K> treeNode;
+    byte typeSignal = byteBuffer.get();
     byte isLeafByte = byteBuffer.get();
     if (isLeafByte == 0x01) {
       treeNode = BTreeNode.createLeafNode();
@@ -392,6 +399,7 @@ public class BTreeNode<K extends Comparable<K>> implements Serializable {
    * Immutable template to calculate leaf node size.
    * <p>
    * private static final Map<String, Integer> leafNodeSizes = Map.of(
+   * "keyType", 1
    * "isLeaf", BOOL_SIZE_BYTES,
    * "numKeys", INT_SIZE_BYTES,
    * "keys", 0,  //to be overridden
@@ -405,6 +413,7 @@ public class BTreeNode<K extends Comparable<K>> implements Serializable {
    * Immutable template to calculate internal node size.
    * <p>
    * private static final Map<String, Integer> internalNodeSizes = Map.of(
+   * "keyType", 1
    * "isLeaf", BOOL_SIZE_BYTES,
    * "numKeys", INT_SIZE_BYTES,
    * "keys", 0,  //to be overridden
@@ -417,6 +426,12 @@ public class BTreeNode<K extends Comparable<K>> implements Serializable {
   @Override
   public ByteBuffer serialize() {
     ByteBuffer byteBuffer = ByteBuffer.allocateDirect(PAGE_SIZE_BYTES);
+    var firstKey = this.keys.getFirst();
+    if (firstKey instanceof IntField) {
+      byteBuffer.put(INT_TYPE_SIGNAL);
+    } else if (firstKey instanceof StringField) {
+      byteBuffer.put(STRING_TYPE_SIGNAL);
+    }
 
     byteBuffer.put((byte) (this.getIsLeaf() ? 1 : 0));
 
@@ -799,6 +814,14 @@ public class BTreeNode<K extends Comparable<K>> implements Serializable {
 
     return root;
   }
+
+  private BTreeNode<K> getNode(Long offset) throws IOException {
+    return BTreeNode.deserialize(indexFile.read(offset));
+  }
+
+//  private Record<K> getRecord(Long offset) {
+//
+//  }
 
   private enum SiblingPosition {
     TO_THE_LEFT,

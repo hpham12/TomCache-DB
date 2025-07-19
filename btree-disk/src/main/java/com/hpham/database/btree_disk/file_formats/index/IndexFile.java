@@ -58,12 +58,12 @@ public class IndexFile {
   /**
    * TODO: Instead of only appending, have a mechanism to write in empty slots.
    */
-  public Long append(ByteBuffer bytes, byte keyType) throws IOException {
+  public Long append(ByteBuffer bytes) throws IOException {
     if (!isDirty) {
       // this is the first record, thus it needs to set Record size in the record file header
       IndexFileHeader indexHeader = IndexFileHeader.builder()
           .rootOffset(IndexFileHeader.size())
-          .keyType(keyType)
+          .keyType((byte) 0x02) // TODO: Remove this
           .build();
 
       byteChannel.write(indexHeader.serialize());

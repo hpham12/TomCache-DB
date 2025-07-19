@@ -57,10 +57,10 @@ public class IndexFileTest {
           );
           ByteBuffer byteBuffer = node.serialize();
           try {
-            indexFile.append(byteBuffer, INT_TYPE_SIGNAL);
+            indexFile.append(byteBuffer);
             ByteBuffer nodeFromDisk = indexFile.read(i);
             BTreeNode<Integer> deserializedNode = BTreeNode
-                .deserialize(nodeFromDisk, INT_TYPE_SIGNAL);
+                .deserialize(nodeFromDisk);
 
             assertThat(deserializedNode.getIsLeaf()).isTrue();
             assertThat(deserializedNode.getKeys()).containsExactlyElementsOf(node.getKeys());
@@ -95,10 +95,10 @@ public class IndexFileTest {
           );
           ByteBuffer byteBuffer = node.serialize();
           try {
-            indexFile.append(byteBuffer, STRING_TYPE_SIGNAL);
+            indexFile.append(byteBuffer);
             ByteBuffer nodeFromDisk = indexFile.read(i);
             BTreeNode<String> deserializedNode = BTreeNode
-                .deserialize(nodeFromDisk, STRING_TYPE_SIGNAL);
+                .deserialize(nodeFromDisk);
 
             assertThat(deserializedNode.getIsLeaf()).isFalse();
             assertThat(deserializedNode.getKeys()).containsExactlyElementsOf(node.getKeys());
@@ -133,7 +133,7 @@ public class IndexFileTest {
           );
           ByteBuffer byteBuffer = node.serialize();
           try {
-            indexFile.append(byteBuffer, INT_TYPE_SIGNAL);
+            indexFile.append(byteBuffer);
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -144,7 +144,7 @@ public class IndexFileTest {
 
     // Read a random node from disl
     ByteBuffer nodeFromDisk = indexFile.read(updatedOffset);
-    BTreeNode<Integer> deserializedNode = BTreeNode.deserialize(nodeFromDisk, INT_TYPE_SIGNAL);
+    BTreeNode<Integer> deserializedNode = BTreeNode.deserialize(nodeFromDisk);
 
     List<SortableField<Integer>> updatedKeys = List.of(
         IntField.fromValue(rand.nextInt()),
@@ -165,7 +165,7 @@ public class IndexFileTest {
 
     ByteBuffer updatedNodeFromDisk = indexFile.read(updatedOffset);
     BTreeNode<Integer> deserializedUpdatedNode = BTreeNode
-        .deserialize(updatedNodeFromDisk, INT_TYPE_SIGNAL);
+        .deserialize(updatedNodeFromDisk);
 
     assertThat(deserializedUpdatedNode.getKeys()).containsExactlyElementsOf(updatedKeys);
     assertThat(deserializedUpdatedNode.getRecordOffsets())
@@ -194,7 +194,7 @@ public class IndexFileTest {
           );
           ByteBuffer byteBuffer = node.serialize();
           try {
-            indexFile.append(byteBuffer, INT_TYPE_SIGNAL);
+            indexFile.append(byteBuffer);
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
