@@ -1,9 +1,11 @@
 package com.hpham.database.btree_disk;
 
 import com.hpham.database.btree_disk.annotations.ForSerialization;
-import com.hpham.database.btree_disk.data_types.IntField;
+import com.hpham.database.btree_disk.data_types.Field;
 import com.hpham.database.btree_disk.data_types.LongField;
+import com.hpham.database.btree_disk.data_types.Serializable;
 import com.hpham.database.btree_disk.data_types.SortableField;
+import com.hpham.database.btree_disk.data_types.StringField;
 import com.hpham.database.btree_disk.exceptions.InvalidMethodInvocationException;
 import com.hpham.database.btree_disk.exceptions.RecordAlreadyExistException;
 import com.hpham.database.btree_disk.exceptions.RecordNotFoundException;
@@ -12,13 +14,18 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static com.hpham.database.btree_disk.BTree.FANOUT;
+import static com.hpham.database.btree_disk.constants.DataConstants.INT_TYPE_SIGNAL;
+import static com.hpham.database.btree_disk.constants.DataConstants.PAGE_SIZE_BYTES;
+import static com.hpham.database.btree_disk.constants.DataConstants.STRING_TYPE_SIGNAL;
 
 /**
  * Class representing B-Tree node.
@@ -28,7 +35,7 @@ import static com.hpham.database.btree_disk.BTree.FANOUT;
  */
 @Getter
 @Setter
-public class BTreeNode<K extends Comparable<K>> {
+public class BTreeNode<K extends Comparable<K>> implements Serializable {
   @ForSerialization
   private Boolean isLeaf;
   @ForSerialization
@@ -321,6 +328,136 @@ public class BTreeNode<K extends Comparable<K>> {
       return mergeLeafNodes(this, nodeToMergeWith);
     }
     return Optional.empty();
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <K extends Comparable<K>> BTreeNode<K> deserialize(
+      ByteBuffer byteBuffer,
+      byte typeSignal
+  ) {
+    BTreeNode<K> treeNode;
+    byte isLeafByte = byteBuffer.get();
+    if (isLeafByte == 0x01) {
+      treeNode = BTreeNode.createLeafNode();
+    } else {
+      treeNode = BTreeNode.createInternalNode();
+    }
+
+    byte hasParent = byteBuffer.get();
+
+    long parentOffset = byteBuffer.getLong();
+    if (hasParent != 0x00) {
+      treeNode.setParentOffset(LongField.fromValue(parentOffset));
+    }
+
+    int numRecordsOrPointers = byteBuffer.getInt();
+
+    if (treeNode.isLeaf) {
+      IntStream.range(0, numRecordsOrPointers)
+          .forEach(i -> treeNode.getRecordOffsets().add(LongField.fromValue(byteBuffer.getLong())));
+    } else {
+      IntStream.range(0, numRecordsOrPointers)
+          .forEach(i -> treeNode.getPointerOffsets().add(LongField.fromValue(byteBuffer.getLong())));
+    }
+
+
+    // skip the padding
+    for (int i = numRecordsOrPointers; i < FANOUT; i++) {
+      byteBuffer.getLong();
+    }
+
+    int numKey = byteBuffer.getInt();
+
+    // TODO: expand type support
+    if (numKey > 0) {
+      switch (typeSignal) {
+        case INT_TYPE_SIGNAL -> IntStream.range(0, numKey)
+            .forEach(i -> treeNode.getKeys().add(
+                (SortableField<K>) Field.fromValue(byteBuffer.getInt()))
+            );
+
+        case STRING_TYPE_SIGNAL -> IntStream.range(0, numKey)
+            .forEach(i -> {
+                  treeNode.getKeys().add(
+                      (SortableField<K>) Field.fromValue(StringField.deserialize(byteBuffer, byteBuffer.position())));
+                }
+            );
+      }
+    }
+
+    return treeNode;
+  }
+
+  /**
+   * Immutable template to calculate leaf node size.
+   * <p>
+   * private static final Map<String, Integer> leafNodeSizes = Map.of(
+   * "isLeaf", BOOL_SIZE_BYTES,
+   * "numKeys", INT_SIZE_BYTES,
+   * "keys", 0,  //to be overridden
+   * "hasParent", BOOL_SIZE_BYTES,
+   * "parentOffset", POINTER_SIZE_BYTES,
+   * "numRecords", INT_SIZE_BYTES,
+   * "recordsOffset", 0 //to be overridden
+   * );
+   * <p>
+   * <p>
+   * Immutable template to calculate internal node size.
+   * <p>
+   * private static final Map<String, Integer> internalNodeSizes = Map.of(
+   * "isLeaf", BOOL_SIZE_BYTES,
+   * "numKeys", INT_SIZE_BYTES,
+   * "keys", 0,  //to be overridden
+   * "hasParent", BOOL_SIZE_BYTES,
+   * "parentOffset", POINTER_SIZE_BYTES,
+   * "numPointers", INT_SIZE_BYTES,
+   * "pointersOffset", POINTER_SIZE_BYTES   //to be overridden
+   * );
+   */
+  @Override
+  public ByteBuffer serialize() {
+    ByteBuffer byteBuffer = ByteBuffer.allocateDirect(PAGE_SIZE_BYTES);
+
+    byteBuffer.put((byte) (this.getIsLeaf() ? 1 : 0));
+
+    if (this.getParent() == null) {
+      byteBuffer.put((byte) 0x00);
+      byteBuffer.putLong(0);
+    } else {
+      byteBuffer.put((byte) 0x01);
+      byteBuffer.put(this.getParentOffset().serialize());
+    }
+
+    if (this.getIsLeaf()) {
+      // records
+      byteBuffer.putInt(this.getRecordOffsets().size());
+      this.getRecordOffsets().forEach(recordOffset -> byteBuffer.put(recordOffset.serialize()));
+
+      // add padding to make the size constant
+      for (int i = this.getRecordOffsets().size(); i < FANOUT; i++) {
+        byteBuffer.putLong(0);
+      }
+    } else {
+      // pointers
+      byteBuffer.putInt(this.getPointerOffsets().size());
+      this.getPointerOffsets().forEach(pointerOffset -> byteBuffer.put(pointerOffset.serialize()));
+
+      // add padding to make the size constant
+      for (int i = this.getPointerOffsets().size(); i < FANOUT; i++) {
+        byteBuffer.putLong(0);
+      }
+    }
+
+    byteBuffer.putInt(this.getKeys().size());
+
+    this.getKeys().forEach(key -> byteBuffer.put(key.serialize()));
+    while (byteBuffer.position() < PAGE_SIZE_BYTES) {
+      byteBuffer.put((byte) 0);
+    }
+
+    byteBuffer.position(PAGE_SIZE_BYTES);
+    byteBuffer.flip();
+    return byteBuffer;
   }
 
   private Optional<BTreeNode<K>> reBalanceLeafNode(

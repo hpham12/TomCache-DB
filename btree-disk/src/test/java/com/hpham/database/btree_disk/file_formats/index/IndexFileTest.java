@@ -1,26 +1,24 @@
 package com.hpham.database.btree_disk.file_formats.index;
 
-import static com.hpham.database.btree_disk.constants.DataConstants.INT_TYPE_SIGNAL;
-import static com.hpham.database.btree_disk.constants.DataConstants.PAGE_SIZE_BYTES;
-import static com.hpham.database.btree_disk.constants.DataConstants.STRING_TYPE_SIGNAL;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.offset;
-
 import com.hpham.database.btree_disk.BTreeNode;
 import com.hpham.database.btree_disk.data_types.IntField;
 import com.hpham.database.btree_disk.data_types.LongField;
 import com.hpham.database.btree_disk.data_types.SortableField;
 import com.hpham.database.btree_disk.data_types.StringField;
-import com.hpham.database.btree_disk.util.SerializationUtil;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
-import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Random;
+import java.util.stream.IntStream;
+
+import static com.hpham.database.btree_disk.constants.DataConstants.INT_TYPE_SIGNAL;
+import static com.hpham.database.btree_disk.constants.DataConstants.PAGE_SIZE_BYTES;
+import static com.hpham.database.btree_disk.constants.DataConstants.STRING_TYPE_SIGNAL;
+import static org.assertj.core.api.Assertions.assertThat;
 
 
 public class IndexFileTest {
@@ -57,12 +55,12 @@ public class IndexFileTest {
                   LongField.fromValue(rand.nextLong())
               )
           );
-          ByteBuffer byteBuffer = SerializationUtil.serialize(node);
+          ByteBuffer byteBuffer = node.serialize();
           try {
-            indexFile.append(byteBuffer);
+            indexFile.append(byteBuffer, INT_TYPE_SIGNAL);
             ByteBuffer nodeFromDisk = indexFile.read(i);
-            BTreeNode<Integer> deserializedNode = SerializationUtil
-                .deserializeBTreeNode(nodeFromDisk, INT_TYPE_SIGNAL);
+            BTreeNode<Integer> deserializedNode = BTreeNode
+                .deserialize(nodeFromDisk, INT_TYPE_SIGNAL);
 
             assertThat(deserializedNode.getIsLeaf()).isTrue();
             assertThat(deserializedNode.getKeys()).containsExactlyElementsOf(node.getKeys());
@@ -80,7 +78,7 @@ public class IndexFileTest {
     indexFile.openFile(String.format("index-%d.tc", rand.nextInt()));
     IntStream.range(0, 10).forEach(
         i -> {
-          BTreeNode<String> node = BTreeNode.createLeafNode();
+          BTreeNode<String> node = BTreeNode.createInternalNode();
           node.setKeys(
               List.of(
                   StringField.fromValue(String.format("%d", rand.nextInt())),
@@ -95,17 +93,17 @@ public class IndexFileTest {
                   LongField.fromValue(rand.nextLong())
               )
           );
-          ByteBuffer byteBuffer = SerializationUtil.serialize(node);
+          ByteBuffer byteBuffer = node.serialize();
           try {
-            indexFile.append(byteBuffer);
+            indexFile.append(byteBuffer, STRING_TYPE_SIGNAL);
             ByteBuffer nodeFromDisk = indexFile.read(i);
-            BTreeNode<String> deserializedNode = SerializationUtil
-                .deserializeBTreeNode(nodeFromDisk, STRING_TYPE_SIGNAL);
+            BTreeNode<String> deserializedNode = BTreeNode
+                .deserialize(nodeFromDisk, STRING_TYPE_SIGNAL);
 
-            assertThat(deserializedNode.getIsLeaf()).isTrue();
+            assertThat(deserializedNode.getIsLeaf()).isFalse();
             assertThat(deserializedNode.getKeys()).containsExactlyElementsOf(node.getKeys());
-            assertThat(deserializedNode.getRecordOffsets())
-                .containsExactlyElementsOf(node.getRecordOffsets());
+            assertThat(deserializedNode.getPointerOffsets())
+                .containsExactlyElementsOf(node.getPointerOffsets());
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -133,9 +131,9 @@ public class IndexFileTest {
                   LongField.fromValue(rand.nextLong())
               )
           );
-          ByteBuffer byteBuffer = SerializationUtil.serialize(node);
+          ByteBuffer byteBuffer = node.serialize();
           try {
-            indexFile.append(byteBuffer);
+            indexFile.append(byteBuffer, INT_TYPE_SIGNAL);
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -146,8 +144,7 @@ public class IndexFileTest {
 
     // Read a random node from disl
     ByteBuffer nodeFromDisk = indexFile.read(updatedOffset);
-    BTreeNode<Integer> deserializedNode = SerializationUtil
-        .deserializeBTreeNode(nodeFromDisk, INT_TYPE_SIGNAL);
+    BTreeNode<Integer> deserializedNode = BTreeNode.deserialize(nodeFromDisk, INT_TYPE_SIGNAL);
 
     List<SortableField<Integer>> updatedKeys = List.of(
         IntField.fromValue(rand.nextInt()),
@@ -164,11 +161,11 @@ public class IndexFileTest {
     deserializedNode.setKeys(updatedKeys);
     deserializedNode.setRecordOffsets(updatedRecordOffsets);
 
-    indexFile.update(SerializationUtil.serialize(deserializedNode), updatedOffset);
+    indexFile.update(deserializedNode.serialize(), updatedOffset);
 
     ByteBuffer updatedNodeFromDisk = indexFile.read(updatedOffset);
-    BTreeNode<Integer> deserializedUpdatedNode = SerializationUtil
-        .deserializeBTreeNode(updatedNodeFromDisk, INT_TYPE_SIGNAL);
+    BTreeNode<Integer> deserializedUpdatedNode = BTreeNode
+        .deserialize(updatedNodeFromDisk, INT_TYPE_SIGNAL);
 
     assertThat(deserializedUpdatedNode.getKeys()).containsExactlyElementsOf(updatedKeys);
     assertThat(deserializedUpdatedNode.getRecordOffsets())
@@ -195,9 +192,9 @@ public class IndexFileTest {
                   LongField.fromValue(rand.nextLong())
               )
           );
-          ByteBuffer byteBuffer = SerializationUtil.serialize(node);
+          ByteBuffer byteBuffer = node.serialize();
           try {
-            indexFile.append(byteBuffer);
+            indexFile.append(byteBuffer, INT_TYPE_SIGNAL);
           } catch (IOException e) {
             throw new RuntimeException(e);
           }

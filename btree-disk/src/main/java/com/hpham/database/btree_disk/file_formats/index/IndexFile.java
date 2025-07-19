@@ -1,5 +1,7 @@
 package com.hpham.database.btree_disk.file_formats.index;
 
+import com.hpham.database.btree_disk.file_formats.record.RecordFileHeader;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,6 +22,8 @@ import static java.nio.file.StandardOpenOption.WRITE;
 public class IndexFile {
   private File file;
   private SeekableByteChannel byteChannel;
+  private Boolean isDirty = Boolean.FALSE;
+  private Long indexStart;
 
   public void openFile(String fileName) throws IOException {
     file = new File(fileName);
@@ -40,7 +44,7 @@ public class IndexFile {
   }
 
   public ByteBuffer read(long offset) throws IOException {
-    long actualPosition = offset * PAGE_SIZE_BYTES;
+    long actualPosition = offset * PAGE_SIZE_BYTES + indexStart;
     byteChannel.position(actualPosition);
 
     ByteBuffer readBuffer = ByteBuffer.allocateDirect(PAGE_SIZE_BYTES);
@@ -54,7 +58,18 @@ public class IndexFile {
   /**
    * TODO: Instead of only appending, have a mechanism to write in empty slots.
    */
-  public Long append(ByteBuffer bytes) throws IOException {
+  public Long append(ByteBuffer bytes, byte keyType) throws IOException {
+    if (!isDirty) {
+      // this is the first record, thus it needs to set Record size in the record file header
+      IndexFileHeader indexHeader = IndexFileHeader.builder()
+          .rootOffset(IndexFileHeader.size())
+          .keyType(keyType)
+          .build();
+
+      byteChannel.write(indexHeader.serialize());
+      indexStart = byteChannel.position();
+      isDirty = true;
+    }
     Long newIndexPosition = byteChannel.size();
     byteChannel.position(newIndexPosition);
     byteChannel.write(bytes);
@@ -63,7 +78,7 @@ public class IndexFile {
   }
 
   public Long update(ByteBuffer bytes, long offset) throws IOException {
-    long actualPosition = offset * PAGE_SIZE_BYTES;
+    long actualPosition = offset * PAGE_SIZE_BYTES + indexStart;
     byteChannel.position(actualPosition);
     byteChannel.write(bytes);
 
@@ -72,7 +87,7 @@ public class IndexFile {
 
   // TODO: Save empty slots in header/metadata file
   public Long delete(long offset) throws IOException {
-    long actualPosition = offset * PAGE_SIZE_BYTES;
+    long actualPosition = offset * PAGE_SIZE_BYTES + indexStart;
     byteChannel.position(actualPosition);
     byteChannel.write(ByteBuffer.wrap(new byte[PAGE_SIZE_BYTES]));
 
