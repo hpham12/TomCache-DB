@@ -23,13 +23,13 @@ public class RecordFileTest {
   private static final Random rand = new Random();
 
   @BeforeEach
-  void beforeEach() {
-    recordFile = new RecordFile();
+  void beforeEach() throws IOException {
+    recordFile = new RecordFile(String.format("record-%d.tc", rand.nextInt()));
   }
 
   @AfterEach
   void afterEach() throws IOException {
-    recordFile.delete();
+    recordFile.deleteAll();
   }
 
   @Test
@@ -39,7 +39,6 @@ public class RecordFileTest {
     fields.put("field2", IntField.fromValue(4));
     fields.put("field3", StringField.fromValue("value3"));
     fields.put("field4", IntField.fromValue(4));
-    recordFile.openFile(String.format("record-%d.tc", rand.nextInt()));
     IntStream.range(0, 10).forEach(
         i -> {
           var key = IntField.fromValue(rand.nextInt());
@@ -68,7 +67,6 @@ public class RecordFileTest {
     fields.put("field2", IntField.fromValue(4));
     fields.put("field3", StringField.fromValue("value3"));
     fields.put("field4", IntField.fromValue(4));
-    recordFile.openFile(String.format("record-%d.tc", rand.nextInt()));
     IntStream.range(0, 10).forEach(
         i -> {
           var key = IntField.fromValue(rand.nextInt());
@@ -113,7 +111,6 @@ public class RecordFileTest {
     fields.put("field2", IntField.fromValue(4));
     fields.put("field3", StringField.fromValue("value3"));
     fields.put("field4", IntField.fromValue(4));
-    recordFile.openFile(String.format("record-%d.tc", rand.nextInt()));
     IntStream.range(0, 10).forEach(
         i -> {
           var key = IntField.fromValue(rand.nextInt());
@@ -130,7 +127,7 @@ public class RecordFileTest {
     );
 
     long recordOffsetToDelete = 4L;
-    recordFile.delete(recordOffsetToDelete);
+    recordFile.deleteAll(recordOffsetToDelete);
 
     ByteBuffer bb = recordFile.read(recordOffsetToDelete);
 

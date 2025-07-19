@@ -54,7 +54,7 @@ public final class LongField extends SortableField<Long> {
   }
 
   @Override
-  public Character getTypeSignal() {
+  public Byte getTypeSignal() {
     return LONG_TYPE_SIGNAL;
   }
 }

@@ -3,6 +3,7 @@ package com.hpham.database.btree_disk;
 import com.hpham.database.btree_disk.data_types.Field;
 import com.hpham.database.btree_disk.data_types.IntField;
 import com.hpham.database.btree_disk.data_types.StringField;
+import lombok.Getter;
 import lombok.Setter;
 
 import java.nio.ByteBuffer;
@@ -14,6 +15,7 @@ import static com.hpham.database.btree_disk.constants.DataConstants.STRING_SIZE_
 import static com.hpham.database.btree_disk.constants.DataConstants.TYPE_SIGNAL_SIZE_BYTES;
 
 @Setter
+@Getter
 public class RecordValue {
   private Map<String, Field<?>> fields = new LinkedHashMap<>();
 
@@ -70,7 +72,7 @@ public class RecordValue {
 
     fields.forEach((fieldName, field) -> {
       bb.put(StringField.fromValue(fieldName).serialize());
-      bb.put((byte) (char) field.getTypeSignal());
+      bb.put(field.getTypeSignal());
       bb.put(field.serialize());
     });
 

@@ -53,7 +53,7 @@ public final class IntField extends SortableField<Integer> {
   }
 
   @Override
-  public Character getTypeSignal() {
+  public Byte getTypeSignal() {
     return INT_TYPE_SIGNAL;
   }
 }

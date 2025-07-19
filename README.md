@@ -29,3 +29,6 @@
   - First, download the plugin from Marketplace. This can be done inside IntelliJ
   - Configure IDEA to use Google checkstyle: Settings -> Tools -> Checkstyle
 
+## Current status:
+- 
+

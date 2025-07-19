@@ -44,7 +44,7 @@ public class Record<K extends Comparable<K>> implements Comparable<Record<K>> {
             + key.getSize()
     );
 
-    bb.put((byte) (char) key.getTypeSignal());
+    bb.put(key.getTypeSignal());
     bb.put(key.serialize());
     bb.put(serializedValue);
 
@@ -56,7 +56,7 @@ public class Record<K extends Comparable<K>> implements Comparable<Record<K>> {
   @SuppressWarnings("unchecked")
   public static <K extends Comparable<K>> Record<K> deserialize(ByteBuffer bb) {
     // key
-    char keyTypeSignal = (char) bb.get();
+    byte keyTypeSignal = bb.get();
     SortableField<K> key;
 
     switch (keyTypeSignal) {
@@ -73,7 +73,7 @@ public class Record<K extends Comparable<K>> implements Comparable<Record<K>> {
     while (bb.position() < bb.limit() - 1) {
       // get field name
       String fieldName = StringField.deserialize(bb, bb.position());
-      char valueTypeSignal = (char) bb.get();
+      byte valueTypeSignal = bb.get();
 
       Field<?> field;
 

@@ -25,7 +25,11 @@ public class IndexFile {
   private Boolean isDirty = Boolean.FALSE;
   private Long indexStart;
 
-  public void openFile(String fileName) throws IOException {
+  public IndexFile(String fileName) throws IOException {
+    openFile(fileName);
+  }
+
+  private void openFile(String fileName) throws IOException {
     file = new File(fileName);
     file.createNewFile();
 
@@ -62,7 +66,7 @@ public class IndexFile {
     if (!isDirty) {
       // this is the first record, thus it needs to set Record size in the record file header
       IndexFileHeader indexHeader = IndexFileHeader.builder()
-          .rootOffset(IndexFileHeader.size())
+          .rootOffset(0)
           .keyType((byte) 0x02) // TODO: Remove this
           .build();
 
@@ -70,11 +74,38 @@ public class IndexFile {
       indexStart = byteChannel.position();
       isDirty = true;
     }
-    Long newIndexPosition = byteChannel.size();
-    byteChannel.position(newIndexPosition);
+    Long newIndexPosition = byteChannel.position();
     byteChannel.write(bytes);
 
-    return newIndexPosition;
+    return (newIndexPosition - indexStart) / PAGE_SIZE_BYTES;
+  }
+
+  public void updateRootOffset(Long offset) throws IOException {
+    long currentPosition = byteChannel.position();
+
+    ByteBuffer readBuffer = ByteBuffer.allocateDirect(IndexFileHeader.size());
+    byteChannel.position(0);
+    byteChannel.read(readBuffer);
+    IndexFileHeader fileHeader = IndexFileHeader.deserialize(readBuffer);
+
+    fileHeader.setRootOffset(offset);
+    byteChannel.position(0);
+    byteChannel.write(fileHeader.serialize());
+
+    byteChannel.position(currentPosition);
+  }
+
+  public Long getRootOffset() throws IOException {
+    long currentPosition = byteChannel.position();
+    ByteBuffer readBuffer = ByteBuffer.allocateDirect(IndexFileHeader.size());
+    byteChannel.position(0);
+    byteChannel.read(readBuffer);
+    readBuffer.position(0);
+    IndexFileHeader fileHeader = IndexFileHeader.deserialize(readBuffer);
+
+    byteChannel.position(currentPosition);
+
+    return fileHeader.getRootOffset();
   }
 
   public Long update(ByteBuffer bytes, long offset) throws IOException {

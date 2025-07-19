@@ -96,7 +96,7 @@ public final class StringField extends SortableField<String> {
   }
 
   @Override
-  public Character getTypeSignal() {
+  public Byte getTypeSignal() {
     return STRING_TYPE_SIGNAL;
   }
 }

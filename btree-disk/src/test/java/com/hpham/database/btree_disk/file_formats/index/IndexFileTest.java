@@ -26,8 +26,8 @@ public class IndexFileTest {
   private static final Random rand = new Random();
 
   @BeforeEach
-  void beforeEach() {
-    indexFile = new IndexFile();
+  void beforeEach() throws IOException {
+    indexFile = new IndexFile(String.format("index-%d.tc", rand.nextInt()));
   }
 
   @AfterEach
@@ -37,10 +37,9 @@ public class IndexFileTest {
 
   @Test
   void testCreateFileWithIntKey() throws IOException {
-    indexFile.openFile(String.format("index-%d.tc", rand.nextInt()));
     IntStream.range(0, 10).forEach(
         i -> {
-          BTreeNode<Integer> node = BTreeNode.createLeafNode();
+          BTreeNode<Integer> node = BTreeNode.createLeafNode(INT_TYPE_SIGNAL);
           node.setKeys(
               List.of(
                   IntField.fromValue(rand.nextInt()),
@@ -50,9 +49,9 @@ public class IndexFileTest {
           );
           node.setRecordOffsets(
               List.of(
-                  LongField.fromValue(rand.nextLong()),
-                  LongField.fromValue(rand.nextLong()),
-                  LongField.fromValue(rand.nextLong())
+                  rand.nextLong(),
+                  rand.nextLong(),
+                  rand.nextLong()
               )
           );
           ByteBuffer byteBuffer = node.serialize();
@@ -75,10 +74,9 @@ public class IndexFileTest {
 
   @Test
   void testCreateFileWithStringKey() throws IOException {
-    indexFile.openFile(String.format("index-%d.tc", rand.nextInt()));
     IntStream.range(0, 10).forEach(
         i -> {
-          BTreeNode<String> node = BTreeNode.createInternalNode();
+          BTreeNode<String> node = BTreeNode.createInternalNode(STRING_TYPE_SIGNAL);
           node.setKeys(
               List.of(
                   StringField.fromValue(String.format("%d", rand.nextInt())),
@@ -88,9 +86,9 @@ public class IndexFileTest {
           );
           node.setPointerOffsets(
               List.of(
-                  LongField.fromValue(rand.nextLong()),
-                  LongField.fromValue(rand.nextLong()),
-                  LongField.fromValue(rand.nextLong())
+                  rand.nextLong(),
+                  rand.nextLong(),
+                  rand.nextLong()
               )
           );
           ByteBuffer byteBuffer = node.serialize();
@@ -113,10 +111,9 @@ public class IndexFileTest {
 
   @Test
   void testUpdateIndex() throws IOException {
-    indexFile.openFile(String.format("index-%d.tc", rand.nextInt()));
     IntStream.range(0, 5).forEach(
         i -> {
-          BTreeNode<Integer> node = BTreeNode.createLeafNode();
+          BTreeNode<Integer> node = BTreeNode.createLeafNode(INT_TYPE_SIGNAL);
           node.setKeys(
               List.of(
                   IntField.fromValue(rand.nextInt()),
@@ -126,9 +123,9 @@ public class IndexFileTest {
           );
           node.setRecordOffsets(
               List.of(
-                  LongField.fromValue(rand.nextLong()),
-                  LongField.fromValue(rand.nextLong()),
-                  LongField.fromValue(rand.nextLong())
+                  rand.nextLong(),
+                  rand.nextLong(),
+                  rand.nextLong()
               )
           );
           ByteBuffer byteBuffer = node.serialize();
@@ -152,10 +149,10 @@ public class IndexFileTest {
         IntField.fromValue(rand.nextInt())
     );
 
-    List<LongField> updatedRecordOffsets = List.of(
-        LongField.fromValue(rand.nextLong()),
-        LongField.fromValue(rand.nextLong()),
-        LongField.fromValue(rand.nextLong())
+    List<Long> updatedRecordOffsets = List.of(
+        rand.nextLong(),
+        rand.nextLong(),
+        rand.nextLong()
     );
 
     deserializedNode.setKeys(updatedKeys);
@@ -174,10 +171,9 @@ public class IndexFileTest {
 
   @Test
   void testDelete() throws IOException {
-    indexFile.openFile(String.format("index-%d.tc", rand.nextInt()));
     IntStream.range(0, 5).forEach(
         i -> {
-          BTreeNode<Integer> node = BTreeNode.createLeafNode();
+          BTreeNode<Integer> node = BTreeNode.createLeafNode(INT_TYPE_SIGNAL);
           node.setKeys(
               List.of(
                   IntField.fromValue(rand.nextInt()),
@@ -187,9 +183,9 @@ public class IndexFileTest {
           );
           node.setRecordOffsets(
               List.of(
-                  LongField.fromValue(rand.nextLong()),
-                  LongField.fromValue(rand.nextLong()),
-                  LongField.fromValue(rand.nextLong())
+                  rand.nextLong(),
+                  rand.nextLong(),
+                  rand.nextLong()
               )
           );
           ByteBuffer byteBuffer = node.serialize();

@@ -26,7 +26,11 @@ public class RecordFile {
   @Getter
   private Integer recordSize;
 
-  public void openFile(String fileName) throws IOException {
+  public RecordFile(String fileName) throws IOException {
+    openFile(fileName);
+  }
+
+  private void openFile(String fileName) throws IOException {
     file = new File(fileName);
     file.createNewFile();
 
@@ -71,11 +75,10 @@ public class RecordFile {
       recordStart = byteChannel.position();
       isDirty = true;
     }
-    Long newIndexPosition = byteChannel.size();
-    byteChannel.position(newIndexPosition);
+    Long newRecordPosition = byteChannel.position();
     byteChannel.write(bytes);
 
-    return newIndexPosition;
+    return (newRecordPosition - recordStart)/recordSize;
   }
 
   public Long update(ByteBuffer bytes, long offset) throws IOException {
@@ -86,7 +89,7 @@ public class RecordFile {
     return actualPosition;
   }
 
-  public Long delete(long offset) throws IOException {
+  public Long deleteAll(long offset) throws IOException {
     long actualPosition = offset * recordSize + recordStart;
     byteChannel.position(actualPosition);
     byteChannel.write(ByteBuffer.wrap(new byte[recordSize]));
@@ -98,7 +101,7 @@ public class RecordFile {
     byteChannel.close();
   }
 
-  public void delete() throws IOException {
+  public void deleteAll() throws IOException {
     close();
     file.delete();
   }
